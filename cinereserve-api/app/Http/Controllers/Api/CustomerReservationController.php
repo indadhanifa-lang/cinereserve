@@ -130,11 +130,9 @@ class CustomerReservationController extends Controller
                 'reserved_at' => $reservation->reserved_at !== null
                     ? (string) $reservation->reserved_at
                     : null,
-                'expires_at' => $reservation->expires_at instanceof \DateTimeInterface
-                    ? $reservation->expires_at->toIso8601String()
-                    : ($reservation->expires_at !== null
-                        ? Carbon::parse((string) $reservation->expires_at)->toIso8601String()
-                        : null),
+                'expires_at' => $reservation->expires_at !== null
+                    ? Carbon::parse($reservation->expires_at)->toIso8601String()
+                    : null,
                 'movie' => [
                     'title' => $reservation->schedule?->movie?->title,
                     'poster_url' => $reservation->schedule?->movie?->poster_url,
@@ -310,13 +308,11 @@ class CustomerReservationController extends Controller
                 'subtotal' => $reservation->subtotal,
                 'discount_amount' => $reservation->discount_amount,
                 'total_amount' => $reservation->total_amount,
-                // Assigned as a Carbon above; defensive cast in case the
-                // attribute round-trips as a raw "Y-m-d H:i:s" string.
-                'expires_at' => $reservation->expires_at instanceof \DateTimeInterface
-                    ? $reservation->expires_at->toIso8601String()
-                    : ($reservation->expires_at !== null
-                        ? Carbon::parse((string) $reservation->expires_at)->toIso8601String()
-                        : null),
+                // Carbon::parse accepts both the Carbon assigned above and a
+                // raw "Y-m-d H:i:s" string, should the attribute round-trip.
+                'expires_at' => $reservation->expires_at !== null
+                    ? Carbon::parse($reservation->expires_at)->toIso8601String()
+                    : null,
                 'movie' => ['title' => $schedule->movie?->title],
                 'branch' => ['name' => $schedule->branch?->name],
                 'screen' => ['name' => $schedule->screen?->name],

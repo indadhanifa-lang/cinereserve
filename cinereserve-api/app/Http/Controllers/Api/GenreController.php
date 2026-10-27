@@ -17,6 +17,10 @@ class GenreController extends Controller
 
     public function store(Request $request)
     {
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:80', 'unique:genres,name'],
         ]);

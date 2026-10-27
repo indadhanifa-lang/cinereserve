@@ -56,6 +56,26 @@ const formatDate = (value: string): string => {
 };
 
 /** "18:00:00" or "18:00" → "6:00 PM" */
+/** True once the show is over (local time). Display-only: the stored
+ * status stays as-is, and customers already can't book past shows. An
+ * end_time earlier than start_time means the show runs past midnight. */
+const hasEnded = (schedule: { show_date: string; start_time: string; end_time: string }): boolean => {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const nowTime = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const end = schedule.end_time.length === 5 ? `${schedule.end_time}:00` : schedule.end_time;
+
+  if (end < schedule.start_time) {
+    // Overnight: ended once we're past end_time on the following day.
+    const next = new Date(`${schedule.show_date}T00:00:00`);
+    next.setDate(next.getDate() + 1);
+    const nextDay = `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}`;
+    return today > nextDay || (today === nextDay && nowTime >= end);
+  }
+  return today > schedule.show_date || (today === schedule.show_date && nowTime >= end);
+};
+
 const formatTime = (value: string): string => {
   const [hourRaw, minuteRaw] = value.split(":");
   const hour = Number(hourRaw);
@@ -261,7 +281,7 @@ export default function SchedulesPage() {
   };
 
   const activeCount = (schedules ?? []).filter(
-    (schedule) => schedule.status === "active"
+    (schedule) => schedule.status === "active" && !hasEnded(schedule)
   ).length;
 
   const fieldError = (key: keyof FormErrors) =>
@@ -425,7 +445,8 @@ export default function SchedulesPage() {
               >
                 <option value="active">Active</option>
                 <option value="cancelled">Cancelled</option>
-                <option value="completed">Completed</option>
+                {/* Legacy value: shown only so an old "completed" row isn't silently saved as active. */}
+                {form.status === "completed" && <option value="completed">Completed</option>}
               </select>
               {fieldError("status")}
             </div>
@@ -470,7 +491,7 @@ export default function SchedulesPage() {
   if (schedules === null) {
     return (
       <>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex min-h-[50vh] items-center justify-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
           <span>Loading schedules…</span>
         </div>
@@ -548,16 +569,22 @@ export default function SchedulesPage() {
                   {formatPrice(schedule.ticket_price)}
                 </td>
                 <td className="px-4 py-3">
-                  <span
-                    className={cn(
-                      "inline-flex rounded-full px-2 py-0.5 text-xs capitalize",
-                      schedule.status === "active"
-                        ? "bg-emerald-400/10 text-emerald-400"
-                        : "bg-muted text-muted-foreground"
-                    )}
-                  >
-                    {schedule.status}
-                  </span>
+                  {hasEnded(schedule) ? (
+                    <span className="inline-flex rounded-full bg-amber-400/10 px-2 py-0.5 text-xs text-amber-400">
+                      Ended
+                    </span>
+                  ) : (
+                    <span
+                      className={cn(
+                        "inline-flex rounded-full px-2 py-0.5 text-xs capitalize",
+                        schedule.status === "active"
+                          ? "bg-emerald-400/10 text-emerald-400"
+                          : "bg-muted text-muted-foreground"
+                      )}
+                    >
+                      {schedule.status}
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <button

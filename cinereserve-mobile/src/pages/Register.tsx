@@ -20,6 +20,7 @@ import {
 } from "ionicons/icons";
 import { navigate } from "../lib/nav";
 import { apiPost } from "../lib/api";
+import "./AuthForm.css";
 import "./Register.css";
 
 interface FormErrors {
@@ -147,7 +148,7 @@ const Register: React.FC = () => {
             </div>
             <h1 className="reg-heading">Create Account</h1>
             <p className="reg-subtext">
-              Join CineReserve to book movies and reserve seats
+              Join CineReserve
             </p>
           </header>
 
@@ -289,9 +290,9 @@ const Register: React.FC = () => {
           <div className="reg-footer">
             <p className="reg-footer__legal">
               By continuing, you agree to CineReserve AI&apos;s{' '}
-              <IonButton fill="clear" className="footer-link">Terms</IonButton>
+              <button type="button" className="footer-link">Terms</button>
               {' '}&amp;{' '}
-              <IonButton fill="clear" className="footer-link">Privacy Policy</IonButton>
+              <button type="button" className="footer-link">Privacy Policy</button>
             </p>
           </div>
         </div>

@@ -87,7 +87,8 @@
 .reg-logo {
   display: block;
   max-width: 280px;
-  height: auto;
+  height: 72px;
+  width: auto;
   margin: 0 auto;
   filter: drop-shadow(0 4px 16px rgba(124, 58, 237, 0.45)) brightness(1.15) contrast(1.1);
   transition: filter 300ms ease-out;
@@ -378,10 +379,10 @@
   width: 100%;
   height: 52px;
   background: var(--primary-container);
-  color: var(--on-primary);
+  color: var(--on-primary-container);
   border: none;
   border-radius: 9999px;
-  font-family: "Inter", sans-serif;
+  font-family: var(--ion-font-family);
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.01em;
@@ -395,7 +396,7 @@
 }
 
 .reg-submit-btn:hover:not(:disabled) {
-  background: var(--primary);
+  filter: brightness(1.1);
 }
 
 .reg-submit-btn:active:not(:disabled) {
@@ -494,15 +495,7 @@
   margin: 0;
   font-size: 11px;
   line-height: 1.5;
-  color: rgba(74, 68, 85, 0.8);
-}
-
-.reg-footer__legal .footer-link {
-  text-decoration: underline;
-}
-
-.reg-footer__legal .footer-link:hover {
-  color: var(--muted);
+  color: #6f6880;
 }
 
 /* ── Animations ───────────────────────────── */

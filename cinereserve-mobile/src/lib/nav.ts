@@ -1,6 +1,11 @@
 import type { UseIonRouterResult } from '@ionic/react';
 
-export function navigate(router: UseIonRouterResult, path: string) {
+/** `root` starts a fresh history (e.g. after payment) so Back can't return into a finished flow. */
+export function navigate(router: UseIonRouterResult, path: string, root = false) {
   (document.activeElement as HTMLElement | null)?.blur();
-  router.push(path);
+  if (root) {
+    router.navigateRoot(path);
+  } else {
+    router.push(path);
+  }
 }

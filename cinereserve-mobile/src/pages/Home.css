@@ -45,7 +45,7 @@
 
 /* Logo alone is the header title/brand — no separate text title. */
 .home-header__logo {
-  height: 40px;
+  height: 56px;
   width: auto;
   object-fit: contain;
 }
@@ -121,36 +121,25 @@
   margin-bottom: 24px;
 }
 
-.home-hero__badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  margin-bottom: 8px;
-  border-radius: 999px;
-  background: var(--primary-container-tint);
-  color: var(--secondary);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.home-hero__badge ion-icon {
-  font-size: 13px;
-}
-
 .home-hero__title {
   margin: 0;
   font-family: 'Outfit', var(--ion-font-family);
-  font-size: 26px;
-  line-height: 34px;
+  font-size: 20px;
+  line-height: 28px;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--text);
 }
 
+/* One line: the font scales with the screen width, and very narrow phones
+   get an ellipsis instead of a wrap. */
 .home-hero__subtext {
   margin: 4px 0 0;
   color: var(--muted-strong);
+  font-size: clamp(10px, 3.2vw, 14px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .home-loading {
@@ -174,11 +163,110 @@
   letter-spacing: 0.02em;
 }
 
+/* Swipe carousel: native scroll-snap, bleeds to the screen edges (cancels
+ * .home-body's 20px side padding) and lets the next card peek in. */
 .showing-list {
   display: flex;
-  flex-direction: column;
   gap: 12px;
+  margin: 0 -20px 24px;
+  padding: 0 20px 4px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 20px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.showing-list::-webkit-scrollbar {
+  display: none;
+}
+
+/* ~2 posters per phone screen; capped so tablets don't get giant posters. */
+.showing-list > .poster-card {
+  flex: 0 0 clamp(140px, 42%, 220px);
+  scroll-snap-align: start;
+}
+
+.poster-card {
+  position: relative;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: 18px;
+  background: var(--surface-low);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 100ms ease-out, box-shadow 150ms ease-out;
+}
+
+.poster-card:active {
+  transform: scale(0.97);
+}
+
+.poster-card:focus-visible {
+  outline: 2px solid var(--secondary);
+  outline-offset: 2px;
+}
+
+.poster-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.poster-card__placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px;
+  text-align: center;
+  color: var(--secondary);
+  background:
+    radial-gradient(ellipse at top, rgba(124, 58, 237, 0.25) 0%, transparent 70%),
+    var(--surface-high);
+}
+
+.poster-card__placeholder ion-icon {
+  font-size: 32px;
+}
+
+.poster-card__placeholder span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Dots sit under the carousel; .showing-list's bottom margin moves here. */
+.showing-list:has(+ .showing-dots) {
+  margin-bottom: 12px;
+}
+
+.showing-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
   margin-bottom: 24px;
+}
+
+.showing-dots__dot {
+  width: 6px;
+  height: 6px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--surface-high);
+  cursor: pointer;
+  transition: width 200ms ease-out, background-color 200ms ease-out;
+}
+
+.showing-dots__dot--active {
+  width: 18px;
+  background: var(--secondary);
 }
 
 .movie-card {
@@ -210,7 +298,7 @@
 }
 
 .movie-card:active {
-  transform: scale(0.99);
+  transform: scale(0.98);
 }
 
 .movie-card__poster {
@@ -459,21 +547,34 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
-.feature-card__icon {
+.feature-card__poster {
   flex-shrink: 0;
-  width: 44px;
-  height: 44px;
+  width: 52px;
+  aspect-ratio: 2 / 3;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 16px;
+  overflow: hidden;
+  border-radius: 10px;
   background: var(--surface);
   color: var(--secondary);
   font-size: 22px;
 }
 
+.feature-card__poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .feature-card__body {
+  flex: 1;
   min-width: 0;
+}
+
+.feature-card__body .feature-card__badge {
+  display: inline-block;
+  margin: 2px 0 4px;
 }
 
 .feature-card__heading {
@@ -488,6 +589,10 @@
   font-size: 16px;
   font-weight: 600;
   color: var(--text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .feature-card__badge {
@@ -497,11 +602,6 @@
   color: var(--secondary);
   font-size: 11px;
   font-weight: 600;
-}
-
-.feature-card__badge--alt {
-  background: var(--secondary-container);
-  color: var(--on-secondary-container);
 }
 
 .feature-card__text {
@@ -540,19 +640,32 @@
   color: var(--muted-strong);
   font-size: 11px;
   text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
   transition: color 150ms ease-out;
 }
 
 .bottom-nav__item ion-icon {
   font-size: 22px;
+  transition: transform 150ms ease-out;
+}
+
+.bottom-nav__item:active ion-icon {
+  transform: scale(0.88);
 }
 
 .bottom-nav__item--active {
   color: var(--primary);
   font-weight: 600;
+  /* Its href="#" resolves against <base href="/"> and would reload the app. */
+  pointer-events: none;
 }
 
 /* ── Pending Payment (recovery) ──────────── */
+.home-pending,
+.home-today {
+  margin-bottom: 24px;
+}
+
 .home-pending__list {
   display: flex;
   flex-direction: column;
@@ -645,7 +758,7 @@
   padding: 12px 16px;
   border: none;
   border-radius: 12px;
-  background: var(--secondary);
+  background: var(--primary);
   color: #fff;
   font-family: 'Outfit', var(--ion-font-family);
   font-size: 13.5px;
@@ -657,6 +770,111 @@
 
 .pending-card__cta:active {
   transform: scale(0.98);
+}
+
+/* ── Your Upcoming Shows (reuses .pending-card) ── */
+.next-ticket {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 100ms ease-out;
+}
+
+.next-ticket:active {
+  transform: scale(0.98);
+}
+
+.next-ticket:focus-visible {
+  outline: 2px solid var(--secondary);
+  outline-offset: 2px;
+}
+
+.ticket-swipe {
+  display: flex;
+  gap: 12px;
+  margin: 0 -20px;
+  padding: 0 20px 4px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 20px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.ticket-swipe::-webkit-scrollbar {
+  display: none;
+}
+
+.ticket-swipe > .next-ticket {
+  flex: 0 0 85%;
+  min-width: 0;
+  scroll-snap-align: start;
+}
+
+.ticket-swipe > .next-ticket:only-child {
+  flex-basis: 100%;
+}
+
+/* The section already spaces itself below; dots only need room above. */
+.ticket-swipe__dots {
+  margin: 12px 0 0;
+}
+
+.next-ticket .pending-card__badge {
+  background: rgba(34, 197, 94, 0.16);
+  color: #4ade80;
+}
+
+/* ── Showing Today ───────────────────────── */
+.today-card {
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--surface-low);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.today-card__title {
+  margin: 0 0 10px;
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.today-card__times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.today-card__time {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 76px;
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 1px solid rgba(124, 58, 237, 0.45);
+  border-radius: 12px;
+  background: var(--primary-container-tint);
+  color: var(--text);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 100ms ease-out, background-color 150ms ease-out;
+}
+
+.today-card__time:active {
+  transform: scale(0.96);
+  background: rgba(124, 58, 237, 0.35);
+}
+
+.today-card__clock {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.today-card__branch {
+  font-size: 10.5px;
+  color: var(--muted-strong);
 }
 
 @keyframes home-pulse {

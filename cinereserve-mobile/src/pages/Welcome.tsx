@@ -14,7 +14,7 @@ const ChairIcon: React.FC = () => (
     fill="currentColor"
     aria-hidden="true"
   >
-    <path d="M4 18v3h3v-3a3 3 0 0 0-3-3zm0-4a7 7 0 0 0 6 6.93V19H6v2H2v-4a4 4 0 0 1 4-4h1.07A7 7 0 0 0 4 14zm16-4a7 7 0 0 0-6-6.93V5h4v-2h4v4a4 4 0 0 1-4 4h-1.07A7 7 0 0 0 20 10zm-8-7a2 2 0 0 0-2 2v2h4V5a2 2 0 0 0-2-2z" />
+    <path d="M7 4a2 2 0 0 0-2 2v6h14V6a2 2 0 0 0-2-2H7zM3 13a1 1 0 0 0-1 1v3h2v3h2v-3h12v3h2v-3h2v-3a1 1 0 0 0-1-1H3z" />
   </svg>
 );
 
@@ -37,11 +37,6 @@ const Welcome: React.FC = () => {
                   alt="CineReserve AI"
                   className="welcome-logo-img"
                 />
-              </div>
-
-              <div className="welcome-brand">
-                <span className="welcome-brand__name">CineReserve</span>
-                <span className="welcome-brand__ai">AI</span>
               </div>
 
               <p className="welcome-tagline">Your seat. Your movie. Your moment.</p>

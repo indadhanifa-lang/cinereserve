@@ -210,21 +210,29 @@ export const EMPTY_STATES: Record<
   },
 };
 
-export const SETTINGS_CARDS = [
+export type SettingsModal = "branch" | "profile" | "security";
+
+export const SETTINGS_CARDS: {
+  icon: Icon;
+  title: string;
+  description: string;
+  cta: string;
+  modal?: SettingsModal;
+}[] = [
   {
     icon: Store,
     title: "Branch Profile",
     description:
       "Cinema address, contact points, operational hours, and auditorium physical constraints.",
     cta: "Configure Branch",
-    href: "/dashboard/settings/branch",
+    modal: "branch",
   },
   {
     icon: UserCog,
     title: "Admin Profile",
     description: "Staff roles, administrative permissions, internal authentication, and shift rosters.",
     cta: "Configure Profile",
-    href: "/dashboard/settings/profile",
+    modal: "profile",
   },
   {
     icon: Palette,
@@ -238,7 +246,7 @@ export const SETTINGS_CARDS = [
     title: "Security",
     description: "Change your admin password and sign out every other device in one step.",
     cta: "Change Password",
-    href: "/dashboard/settings/security",
+    modal: "security",
   },
 ];
 

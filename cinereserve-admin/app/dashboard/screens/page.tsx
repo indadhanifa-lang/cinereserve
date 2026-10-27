@@ -5,10 +5,10 @@ import { AlertCircle, Loader2, Pencil, SquarePlus, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/dashboard/empty-state";
+import { StatusSwitch } from "@/components/dashboard/status-switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EMPTY_STATES } from "@/lib/dashboard-nav";
-import { cn } from "@/lib/utils";
 
 type Screen = {
   id: number;
@@ -31,6 +31,7 @@ export default function ScreensPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const loadScreens = (silent = false) => {
     fetch("/api/admin/screens")
@@ -160,6 +161,38 @@ export default function ScreensPage() {
     }
   };
 
+  // Optimistic flip via the existing full-row PATCH; reverted if the server rejects it.
+  const toggleStatus = async (screen: Screen) => {
+    const next = screen.status === "active" ? "inactive" : "active";
+    const setStatus = (status: string) =>
+      setScreens((prev) =>
+        prev ? prev.map((s) => (s.id === screen.id ? { ...s, status } : s)) : prev
+      );
+
+    setTogglingId(screen.id);
+    setStatus(next);
+    try {
+      const res = await fetch(`/api/admin/screens/${screen.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: screen.name,
+          screen_type: screen.screen_type,
+          capacity: screen.capacity,
+          status: next,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message);
+      toast.success(`Screen "${screen.name}" is now ${next}.`);
+    } catch (err) {
+      setStatus(screen.status);
+      toast.error(err instanceof Error && err.message ? err.message : "Could not update status.");
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   const activeCount = (screens ?? []).filter((screen) => screen.status === "active").length;
 
   const fieldError = (key: keyof FormErrors) =>
@@ -256,20 +289,6 @@ export default function ScreensPage() {
             {fieldError("capacity")}
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="screen-status">Status</Label>
-            <select
-              id="screen-status"
-              value={form.status}
-              onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))}
-              className="h-11 rounded-md border border-input bg-transparent px-2.5 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
-            >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-            {fieldError("status")}
-          </div>
-
           <div className="mt-1 flex items-center justify-end gap-2">
             <button
               type="button"
@@ -307,7 +326,7 @@ export default function ScreensPage() {
   if (screens === null) {
     return (
       <>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex min-h-[50vh] items-center justify-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
           <span>Loading screens…</span>
         </div>
@@ -367,16 +386,12 @@ export default function ScreensPage() {
                 <td className="px-4 py-3 text-muted-foreground">{screen.screen_type || "—"}</td>
                 <td className="px-4 py-3 text-muted-foreground">{screen.capacity} seats</td>
                 <td className="px-4 py-3">
-                  <span
-                    className={cn(
-                      "inline-flex rounded-full px-2 py-0.5 text-xs capitalize",
-                      screen.status === "active"
-                        ? "bg-emerald-400/10 text-emerald-400"
-                        : "bg-muted text-muted-foreground"
-                    )}
-                  >
-                    {screen.status}
-                  </span>
+                  <StatusSwitch
+                    status={screen.status}
+                    label={`${screen.name} status`}
+                    disabled={togglingId === screen.id}
+                    onToggle={() => void toggleStatus(screen)}
+                  />
                 </td>
                 <td className="px-4 py-3">
                   <button

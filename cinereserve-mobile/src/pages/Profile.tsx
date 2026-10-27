@@ -21,6 +21,7 @@ import {
   receiptOutline,
   ticketOutline,
 } from 'ionicons/icons';
+import { resetHelpChat } from '../components/HelpChat';
 import { apiGetAuth, apiPostAuthLogout, clearToken, getToken, resolveStorageUrl } from '../lib/api';
 import { navigate } from '../lib/nav';
 import './Profile.css';
@@ -123,6 +124,7 @@ const Profile: React.FC = () => {
       }
     } finally {
       clearToken();
+      resetHelpChat();
       setShowLogoutModal(false);
       setSigningOut(false);
       ionRouter.push('/login', 'root');

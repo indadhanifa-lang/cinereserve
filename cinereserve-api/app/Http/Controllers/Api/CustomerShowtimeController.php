@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Movie;
 use App\Models\Schedule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -40,8 +41,28 @@ class CustomerShowtimeController extends Controller
             ->orderBy('id')
             ->get();
 
+        // Coming soon: active movies whose release date is still ahead.
+        $comingSoon = Movie::query()
+            ->where('status', 'active')
+            ->whereDate('release_date', '>', $today)
+            ->with('genres:id,name')
+            ->orderBy('release_date')
+            ->orderBy('id')
+            ->limit(10)
+            ->get()
+            ->map(fn (Movie $movie) => [
+                'id' => $movie->id,
+                'title' => $movie->title,
+                'poster_url' => $movie->poster_url,
+                'duration_minutes' => $movie->duration_minutes,
+                'release_date' => $movie->release_date,
+                'age_rating' => $movie->age_rating,
+                'genres' => $movie->genres->pluck('name'),
+            ]);
+
         return response()->json([
             'movies' => $this->groupByMovie($schedules),
+            'coming_soon' => $comingSoon,
         ]);
     }
 
@@ -63,8 +84,12 @@ class CustomerShowtimeController extends Controller
                 return [
                     'id' => $movie->id,
                     'title' => $movie->title,
+                    'description' => $movie->description,
                     'poster_url' => $movie->poster_url,
+                    'trailer_url' => $movie->trailer_url,
                     'duration_minutes' => $movie->duration_minutes,
+                    'release_date' => $movie->release_date,
+                    'language' => $movie->language,
                     'age_rating' => $movie->age_rating,
                     'genres' => $movie->genres->pluck('name'),
                     'upcoming_schedules' => $movieSchedules

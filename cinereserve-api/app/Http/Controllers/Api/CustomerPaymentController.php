@@ -56,6 +56,9 @@ class CustomerPaymentController extends Controller
         }
 
         $schedule = $reservation->schedule;
+        $expiresAt = $reservation->expires_at !== null
+            ? Carbon::parse($reservation->expires_at)
+            : null;
 
         return response()->json([
             'reservation' => [
@@ -65,11 +68,12 @@ class CustomerPaymentController extends Controller
                 'subtotal' => (string) $reservation->subtotal,
                 'discount_amount' => (string) $reservation->discount_amount,
                 'total_amount' => (string) $reservation->total_amount,
-                'expires_at' => $reservation->expires_at instanceof \DateTimeInterface
-                    ? $reservation->expires_at->toIso8601String()
-                    : ($reservation->expires_at !== null
-                        ? Carbon::parse((string) $reservation->expires_at)->toIso8601String()
-                        : null),
+                'expires_at' => $expiresAt?->toIso8601String(),
+                // Server-side countdown base for the hold timer, so a wrong
+                // device clock can never shift it.
+                'expires_in_seconds' => $expiresAt !== null
+                    ? (int) max(0, now()->diffInSeconds($expiresAt, false))
+                    : null,
                 // Navigation aid only (Choose Seats Again deep link). The
                 // client never sends it back as trusted input.
                 'schedule_id' => $schedule?->id,
@@ -93,7 +97,8 @@ class CustomerPaymentController extends Controller
     }
 
     /**
-     * Simulated payment. The body may carry only payment_method=mock;
+     * Simulated payment. The body may carry only payment_method
+     * (gcash, card or mock — all settle without a real charge);
      * customer, reservation, ownership, amount, payment reference, payment
      * status, reservation status, the ticket (code + qr_token) and the
      * admin branch notification are all resolved server-side inside one
@@ -111,7 +116,9 @@ class CustomerPaymentController extends Controller
         }
 
         $validated = $request->validate([
-            'payment_method' => ['required', 'string', 'in:mock'],
+            // gcash/card are recorded as chosen but still settle as a
+            // simulated payment until a real gateway is wired in.
+            'payment_method' => ['required', 'string', 'in:gcash,card,mock'],
         ]);
 
         $userId = (int) $user->id;
@@ -333,11 +340,9 @@ class CustomerPaymentController extends Controller
                 'payment_method' => $payment->payment_method,
                 'amount' => (string) $payment->amount,
                 'status' => $payment->status,
-                'paid_at' => $payment->paid_at instanceof \DateTimeInterface
-                    ? $payment->paid_at->toIso8601String()
-                    : ($payment->paid_at !== null
-                        ? Carbon::parse((string) $payment->paid_at)->toIso8601String()
-                        : null),
+                'paid_at' => $payment->paid_at !== null
+                    ? Carbon::parse($payment->paid_at)->toIso8601String()
+                    : null,
             ],
             'reservation' => [
                 'id' => $reservation->id,

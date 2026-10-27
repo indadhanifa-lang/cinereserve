@@ -52,7 +52,7 @@
 
 /* Logo alone is the header title/brand — no separate text title. */
 .profile-header__logo {
-  height: 40px;
+  height: 56px;
   width: auto;
   object-fit: contain;
 }

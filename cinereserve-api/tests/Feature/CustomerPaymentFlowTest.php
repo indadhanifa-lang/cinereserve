@@ -69,6 +69,8 @@ class CustomerPaymentFlowTest extends TestCase
         $summary->assertOk();
         // Compared numerically: SQLite drops the ".00" that PostgreSQL's numeric(10,2) keeps.
         $this->assertEquals(550, (float) $summary->json('reservation.total_amount'));
+        // 10-minute hold, counted server-side.
+        $this->assertEqualsWithDelta(600, $summary->json('reservation.expires_in_seconds'), 5);
 
         $response = $this->actingAs($customer, 'sanctum')
             ->postJson("/api/customer/reservations/{$reservationId}/pay", ['payment_method' => 'mock']);
@@ -183,15 +185,27 @@ class CustomerPaymentFlowTest extends TestCase
         $this->assertSame('confirmed', Reservation::find($reservationId)->status);
     }
 
-    public function test_only_the_mock_payment_method_is_accepted(): void
+    public function test_unknown_payment_methods_are_rejected(): void
+    {
+        $customer = $this->customer();
+        $reservationId = $this->reserve($customer);
+
+        $this->actingAs($customer, 'sanctum')
+            ->postJson("/api/customer/reservations/{$reservationId}/pay", ['payment_method' => 'paypal'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('payment_method');
+    }
+
+    public function test_the_chosen_payment_method_is_recorded(): void
     {
         $customer = $this->customer();
         $reservationId = $this->reserve($customer);
 
         $this->actingAs($customer, 'sanctum')
             ->postJson("/api/customer/reservations/{$reservationId}/pay", ['payment_method' => 'gcash'])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors('payment_method');
+            ->assertCreated()
+            ->assertJsonPath('payment.payment_method', 'gcash')
+            ->assertJsonPath('reservation.status', 'confirmed');
     }
 
     public function test_paid_seats_cannot_be_reserved_again(): void

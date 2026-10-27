@@ -3,11 +3,14 @@ import { IonContent, IonIcon, IonPage, IonSpinner, useIonRouter, useIonViewWillE
 import { useSearchParams } from "react-router-dom";
 import {
   alertCircleOutline,
+  chevronDownOutline,
   closeOutline,
   filmOutline,
   homeOutline,
+  locationOutline,
   notificationsOutline,
   personCircleOutline,
+  pricetagOutline,
   personOutline,
   receiptOutline,
   searchOutline,
@@ -16,6 +19,7 @@ import {
 } from "ionicons/icons";
 import { apiGetAuth, resolveStorageUrl } from "../lib/api";
 import { navigate } from "../lib/nav";
+import HelpChat from "../components/HelpChat";
 import "./Movies.css";
 
 interface UpcomingSchedule {
@@ -31,8 +35,12 @@ interface UpcomingSchedule {
 interface ShowtimeMovie {
   id: number;
   title: string;
+  description: string | null;
   poster_url: string | null;
+  trailer_url: string | null;
   duration_minutes: number | null;
+  release_date: string | null;
+  language: string | null;
   age_rating: string | null;
   genres: string[];
   upcoming_schedules: UpcomingSchedule[];
@@ -84,27 +92,6 @@ const formatDate = (showDate: string): string => {
   });
 };
 
-/** Nearest schedule → "Today • 6:00 PM" / "Tomorrow • 6:00 PM" / "Sep 30 • 6:00 PM" */
-const formatNearestShowtime = (schedule: UpcomingSchedule): string => {
-  const today = localTodayString();
-
-  const tomorrowDate = new Date();
-  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-  const pad = (value: number) => String(value).padStart(2, "0");
-  const tomorrow = `${tomorrowDate.getFullYear()}-${pad(tomorrowDate.getMonth() + 1)}-${pad(tomorrowDate.getDate())}`;
-
-  let dayLabel: string;
-  if (schedule.show_date === today) {
-    dayLabel = "Today";
-  } else if (schedule.show_date === tomorrow) {
-    dayLabel = "Tomorrow";
-  } else {
-    dayLabel = formatDate(schedule.show_date).replace(/, \d{4}$/, "");
-  }
-
-  return `${dayLabel} • ${formatTime(schedule.start_time)}`;
-};
-
 const MovieFilterIcon: React.FC = () => (
   <svg
     width="40"
@@ -131,24 +118,39 @@ const Movies: React.FC = () => {
 
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterId>("all");
+  const [activeBranch, setActiveBranch] = useState<number | null>(null);
+  const [activeGenre, setActiveGenre] = useState<string | null>(null);
   const [movies, setMovies] = useState<ShowtimeMovie[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMovie, setSelectedMovie] = useState<ShowtimeMovie | null>(null);
+  const [detailsMovie, setDetailsMovie] = useState<ShowtimeMovie | null>(null);
+  // Every branch screening the movie, taken from its upcoming showtimes.
+  const detailsBranches = [
+    ...new Set(
+      (detailsMovie?.upcoming_schedules ?? [])
+        .map((schedule) => schedule.branch?.name)
+        .filter((name): name is string => Boolean(name))
+    ),
+  ];
   const [failedPosterIds, setFailedPosterIds] = useState<number[]>([]);
   const [showToast, setShowToast] = useState(false);
   const [toastTitle, setToastTitle] = useState("");
   const [toastSubtitle, setToastSubtitle] = useState("");
 
-  // Header avatar (decorative): fetched independently of the movie list;
-  // any failure simply keeps the default person icon.
+  // Header avatar (decorative) and the name the help chat greets: fetched
+  // independently of the movie list; any failure simply keeps the defaults.
   const [headerAvatarUrl, setHeaderAvatarUrl] = useState<string | null>(null);
   const [failedHeaderAvatarUrl, setFailedHeaderAvatarUrl] = useState<string | null>(null);
+  const [customerName, setCustomerName] = useState<string | null>(null);
 
   const loadHeaderAvatar = useCallback(async () => {
     try {
-      const data = await apiGetAuth<{ user: { avatar_url: string | null } }>("/customer/me");
+      const data = await apiGetAuth<{ user: { name: string; avatar_url: string | null } }>(
+        "/customer/me"
+      );
       setHeaderAvatarUrl(resolveStorageUrl(data.user?.avatar_url));
       setFailedHeaderAvatarUrl(null);
+      setCustomerName(data.user?.name ?? null);
     } catch {
       setHeaderAvatarUrl(null);
     }
@@ -241,27 +243,64 @@ const Movies: React.FC = () => {
   /** Tab rules (approved): Now Showing = a returned schedule dated today;
    * Coming Soon = no schedule today and the nearest one after today;
    * All Showtimes = everything the API returned. */
+  /** Every branch with an upcoming showtime, by name. */
+  const branches = useMemo(() => {
+    const byId = new Map<number, string>();
+    movies.forEach((movie) =>
+      movie.upcoming_schedules.forEach((s) => {
+        if (s.branch) byId.set(s.branch.id, s.branch.name);
+      })
+    );
+    return [...byId].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [movies]);
+
+  // A branch that vanished after a refresh falls back to all branches.
+  const branchId = branches.some((b) => b.id === activeBranch) ? activeBranch : null;
+
+  /** Branch filter runs first and trims each movie's showtimes to that
+   * branch, so the tabs and the Showtimes sheet only see its schedules. */
+  const branchMovies = useMemo(() => {
+    if (branchId === null) return movies;
+    return movies
+      .map((movie) => ({
+        ...movie,
+        upcoming_schedules: movie.upcoming_schedules.filter((s) => s.branch?.id === branchId),
+      }))
+      .filter((movie) => movie.upcoming_schedules.length > 0);
+  }, [movies, branchId]);
+
   const tabMovies = useMemo(() => {
-    if (activeFilter === "all") return movies;
-    return movies.filter((movie) => {
+    if (activeFilter === "all") return branchMovies;
+    return branchMovies.filter((movie) => {
       const hasToday = movie.upcoming_schedules.some((s) => s.show_date === today);
       if (activeFilter === "now-showing") return hasToday;
       // coming-soon: nothing today; schedules arrive chronologically,
       // so the first one is the nearest.
       return !hasToday && (movie.upcoming_schedules[0]?.show_date ?? "") > today;
     });
-  }, [movies, activeFilter, today]);
+  }, [branchMovies, activeFilter, today]);
 
-  /** Search applied after the tab filter: title or genre, case-insensitive. */
+  /** Every genre across the loaded movies, alphabetical. */
+  const genres = useMemo(
+    () => [...new Set(movies.flatMap((movie) => movie.genres))].sort((a, b) => a.localeCompare(b)),
+    [movies]
+  );
+
+  // A genre that vanished after a refresh falls back to all genres.
+  const genre = activeGenre !== null && genres.includes(activeGenre) ? activeGenre : null;
+
+  /** Genre chip and search applied after the tab filter; search matches
+   * title or genre, case-insensitive. */
   const visibleMovies = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return tabMovies;
     return tabMovies.filter(
       (movie) =>
-        movie.title.toLowerCase().includes(query) ||
-        movie.genres.some((genre) => genre.toLowerCase().includes(query))
+        (genre === null || movie.genres.includes(genre)) &&
+        (!query ||
+          movie.title.toLowerCase().includes(query) ||
+          movie.genres.some((g) => g.toLowerCase().includes(query)))
     );
-  }, [tabMovies, search]);
+  }, [tabMovies, search, genre]);
 
   const filters: { id: FilterId; label: string }[] = [
     { id: "all", label: "All Showtimes" },
@@ -332,6 +371,45 @@ const Movies: React.FC = () => {
               ))}
             </div>
 
+            {branches.length > 0 && (
+              <div className="movies-pills" role="group" aria-label="Filter by branch">
+                {[{ id: null, name: "All Branches" }, ...branches].map((b) => (
+                  <button
+                    key={b.id ?? "all"}
+                    type="button"
+                    className={`movies-pill movies-pill--outline${branchId === b.id ? " movies-pill--active" : ""}`}
+                    aria-pressed={branchId === b.id}
+                    onClick={() => setActiveBranch(b.id)}
+                  >
+                    {b.id === null && <IonIcon icon={locationOutline} aria-hidden="true" />}
+                    {b.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {genres.length > 0 && (
+              // Native select stretched invisibly over the pill: the whole pill opens
+              // the phone's own picker, and the list isn't indented by icon padding.
+              <label className={`movies-select${genre !== null ? " movies-select--active" : ""}`}>
+                <IonIcon icon={pricetagOutline} aria-hidden="true" />
+                <span className="movies-select__value">{genre ?? "All Genres"}</span>
+                <IonIcon icon={chevronDownOutline} aria-hidden="true" />
+                <select
+                  aria-label="Filter by genre"
+                  value={genre ?? ""}
+                  onChange={(e) => setActiveGenre(e.target.value || null)}
+                >
+                  <option value="">All Genres</option>
+                  {genres.map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
             {loading && movies.length === 0 ? (
               <div className="movies-loading" role="status" aria-live="polite">
                 <IonSpinner name="dots" />
@@ -379,64 +457,45 @@ const Movies: React.FC = () => {
                 </p>
               </div>
             ) : (
-              <div className="movies-list">
+              <div className="movies-grid">
                 {visibleMovies.map((movie) => {
-                  const nearest = movie.upcoming_schedules[0];
                   const posterSrc = resolveStorageUrl(movie.poster_url);
                   const posterOk = Boolean(posterSrc) && !failedPosterIds.includes(movie.id);
-                  const facts = [
-                    movie.age_rating,
-                    movie.duration_minutes ? `${movie.duration_minutes} min` : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" • ");
 
+                  // Poster only (shared .poster-card from Home.css). Tapping opens
+                  // the Details sheet, which holds the info and "View Showtimes".
                   return (
-                    <article className="movie-card" key={movie.id}>
-                      <div className="movie-card__poster">
-                        {posterOk ? (
-                          <img
-                            src={posterSrc!}
-                            alt={`${movie.title} poster`}
-                            onError={() =>
-                              setFailedPosterIds((prev) =>
-                                prev.includes(movie.id) ? prev : [...prev, movie.id]
-                              )
-                            }
-                          />
-                        ) : (
-                          <div className="movie-card__poster-placeholder" aria-hidden="true">
-                            <IonIcon icon={filmOutline} />
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="movie-card__body">
-                        <h3 className="movie-card__title">{movie.title}</h3>
-                        {movie.genres.length > 0 && (
-                          <p className="movie-card__genres">{movie.genres.join(" • ")}</p>
-                        )}
-                        {facts && <p className="movie-card__facts">{facts}</p>}
-
-                        {nearest && (
-                          <div className="movie-card__showtime">
-                            {nearest.branch?.name && (
-                              <span className="movie-card__branch">{nearest.branch.name}</span>
-                            )}
-                            <span className="movie-card__time">
-                              {formatNearestShowtime(nearest)}
-                            </span>
-                          </div>
-                        )}
-
-                        <button
-                          type="button"
-                          className="movie-card__cta"
-                          onClick={() => setSelectedMovie(movie)}
-                        >
-                          View Showtimes
-                        </button>
-                      </div>
+                    <article
+                      className="poster-card"
+                      key={movie.id}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`${movie.title} details`}
+                      onClick={() => setDetailsMovie(movie)}
+                      onKeyDown={(e) => {
+                        if (e.target !== e.currentTarget) return;
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setDetailsMovie(movie);
+                        }
+                      }}
+                    >
+                      {posterOk ? (
+                        <img
+                          src={posterSrc!}
+                          alt=""
+                          onError={() =>
+                            setFailedPosterIds((prev) =>
+                              prev.includes(movie.id) ? prev : [...prev, movie.id]
+                            )
+                          }
+                        />
+                      ) : (
+                        <div className="poster-card__placeholder" aria-hidden="true">
+                          <IonIcon icon={filmOutline} />
+                          <span>{movie.title}</span>
+                        </div>
+                      )}
                     </article>
                   );
                 })}
@@ -444,6 +503,111 @@ const Movies: React.FC = () => {
             )}
           </div>
         </IonContent>
+
+        {detailsMovie && (
+          <div
+            className="movies-schedule-modal"
+            onClick={() => setDetailsMovie(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${detailsMovie.title} details`}
+          >
+            <div className="movies-schedule-modal__backdrop" />
+            <div
+              className="movies-schedule-modal__sheet"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="movies-schedule-modal__header">
+                <div className="movies-schedule-modal__heading">
+                  <span className="movies-schedule-modal__title">{detailsMovie.title}</span>
+                  <span className="movies-schedule-modal__subtitle">Movie Details</span>
+                </div>
+                <button
+                  type="button"
+                  className="movies-schedule-modal__close"
+                  onClick={() => setDetailsMovie(null)}
+                  aria-label="Close details"
+                >
+                  <IonIcon icon={closeOutline} />
+                </button>
+              </div>
+
+              <div className="movie-details">
+                <div className="movie-details__top">
+                  <div className="movie-card__poster">
+                    {resolveStorageUrl(detailsMovie.poster_url) &&
+                    !failedPosterIds.includes(detailsMovie.id) ? (
+                      <img
+                        src={resolveStorageUrl(detailsMovie.poster_url)!}
+                        alt={`${detailsMovie.title} poster`}
+                      />
+                    ) : (
+                      <div className="movie-card__poster-placeholder" aria-hidden="true">
+                        <IonIcon icon={filmOutline} />
+                      </div>
+                    )}
+                  </div>
+                  <dl className="movie-details__facts">
+                    {[
+                      ["Genres", detailsMovie.genres.join(" • ")],
+                      [
+                        detailsBranches.length > 1 ? "Branches" : "Branch",
+                        detailsBranches.join(", "),
+                      ],
+                      ["Rating", detailsMovie.age_rating],
+                      [
+                        "Runtime",
+                        detailsMovie.duration_minutes
+                          ? `${detailsMovie.duration_minutes} min`
+                          : null,
+                      ],
+                      [
+                        "Release",
+                        detailsMovie.release_date
+                          ? formatDate(detailsMovie.release_date.slice(0, 10))
+                          : null,
+                      ],
+                      ["Language", detailsMovie.language],
+                    ]
+                      .filter(([, value]) => value)
+                      .map(([label, value]) => (
+                        <div className="movie-details__fact" key={label}>
+                          <dt>{label}</dt>
+                          <dd>{value}</dd>
+                        </div>
+                      ))}
+                  </dl>
+                </div>
+
+                <p className="movie-details__synopsis">
+                  {detailsMovie.description || "No synopsis available yet."}
+                </p>
+
+                {detailsMovie.trailer_url && /^https?:\/\//i.test(detailsMovie.trailer_url) && (
+                  <a
+                    className="movie-details__trailer"
+                    href={detailsMovie.trailer_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Watch Trailer
+                  </a>
+                )}
+
+                <button
+                  type="button"
+                  className="schedule-item__reserve"
+                  onClick={() => {
+                    setSelectedMovie(detailsMovie);
+                    setDetailsMovie(null);
+                  }}
+                >
+                  View Showtimes
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {selectedMovie && (
           <div
@@ -523,6 +687,8 @@ const Movies: React.FC = () => {
             <span className="pi-toast__subtitle">{toastSubtitle}</span>
           </div>
         </div>
+
+        <HelpChat customerName={customerName} />
 
         <nav className="bottom-nav">
           <a

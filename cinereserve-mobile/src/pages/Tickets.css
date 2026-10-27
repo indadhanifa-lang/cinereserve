@@ -48,7 +48,7 @@
 
 /* Logo alone is the header title/brand — no separate text title. */
 .tickets-header__logo {
-  height: 40px;
+  height: 56px;
   width: auto;
   object-fit: contain;
 }
@@ -127,6 +127,7 @@
   font-size: 12px;
   line-height: 16px;
   color: var(--muted-strong);
+  font-weight: 500;
 }
 
 .tickets-title-icon {
@@ -162,7 +163,7 @@
   padding: 10px 12px;
   border: none;
   border-radius: 999px;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--ion-font-family);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -319,7 +320,7 @@
   border-radius: 999px;
   background: var(--primary-container);
   color: var(--on-primary);
-  font-family: 'Inter', sans-serif;
+  font-family: var(--ion-font-family);
   font-size: 14px;
   font-weight: 600;
   line-height: 20px;
@@ -618,6 +619,7 @@
   font-size: 12px;
   line-height: 16px;
   color: var(--muted-strong);
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -634,12 +636,14 @@
   margin: 0;
   font-size: 12px;
   color: var(--muted-strong);
+  font-weight: 500;
 }
 
 .tickets-card__seats {
   margin: 2px 0 0;
   font-size: 12px;
   color: var(--muted-strong);
+  font-weight: 500;
 }
 
 .tickets-card__reservation {
@@ -647,6 +651,7 @@
   font-size: 11px;
   letter-spacing: 0.02em;
   color: var(--muted);
+  font-weight: 500;
 }
 
 /* ── Ticket Details Modal ────────────────── */
