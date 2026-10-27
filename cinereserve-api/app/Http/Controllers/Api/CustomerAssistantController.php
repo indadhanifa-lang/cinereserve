@@ -120,7 +120,7 @@ class CustomerAssistantController extends Controller
                 'title' => $this->field($movie['title']),
                 'opens' => substr((string) $movie['release_date'], 0, 10),
             ])->all(),
-        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); // HEX_TAG: a name can't close </cinema_data>
 
         return <<<PROMPT
         You are the help assistant inside CineReserve, a movie ticket booking app for cinemas in the Philippines.
