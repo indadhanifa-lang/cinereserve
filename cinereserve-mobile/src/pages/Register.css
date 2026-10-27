@@ -1,0 +1,547 @@
+.reg-content {
+  --background: #131317;
+}
+
+.reg-page {
+  --primary: #d2bbff;
+  --primary-container: #7c3aed;
+  --on-primary: #3f008e;
+  --on-primary-container: #ede0ff;
+  --secondary: #cebdff;
+  --secondary-container: #4f319c;
+  --surface: #131317;
+  --surface-container: #1f1f23;
+  --surface-container-low: #1b1b1f;
+  --surface-container-high: #2a292e;
+  --surface-container-highest: #353439;
+  --surface-container-lowest: #0e0e12;
+  --on-surface: #e4e1e7;
+  --on-surface-variant: #ccc3d8;
+  --outline: #958da1;
+  --outline-variant: #4a4455;
+  --error: #ffb4ab;
+  --error-container: #93000a;
+  --on-error-container: #ffdad6;
+
+  position: relative;
+  min-height: 100%;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 440px;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top) + 12px) 20px
+    calc(env(safe-area-inset-bottom) + 24px);
+  overflow: hidden;
+}
+
+.reg-glow {
+  position: absolute;
+  top: -64px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 320px;
+  height: 288px;
+  background: linear-gradient(
+    to bottom,
+    rgba(124, 58, 237, 0.3),
+    rgba(79, 49, 156, 0.1) 50%,
+    transparent
+  );
+  filter: blur(48px);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.reg-glow-right {
+  position: absolute;
+  top: 112px;
+  right: 0;
+  width: 176px;
+  height: 176px;
+  background: rgba(210, 187, 255, 0.1);
+  border-radius: 50%;
+  filter: blur(32px);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ── Header ──────────────────────────────── */
+.reg-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-top: 4px;
+  margin-bottom: 4px;
+  animation: reg-fade-up 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.reg-logo-wrap {
+  margin-bottom: 16px;
+}
+
+.reg-logo {
+  display: block;
+  max-width: 280px;
+  height: auto;
+  margin: 0 auto;
+  filter: drop-shadow(0 4px 16px rgba(124, 58, 237, 0.45)) brightness(1.15) contrast(1.1);
+  transition: filter 300ms ease-out;
+}
+
+.reg-logo-wrap:hover .reg-logo {
+  filter: drop-shadow(0 4px 20px rgba(124, 58, 237, 0.6)) brightness(1.2) contrast(1.1);
+}
+
+.reg-heading {
+  margin: 8px 0 0;
+  font-family: "Outfit", sans-serif;
+  font-size: 26px;
+  line-height: 34px;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+  color: var(--on-surface);
+}
+
+.reg-subtext {
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--on-surface-variant);
+  max-width: 320px;
+  text-wrap: balance;
+}
+
+/* ── Banners ─────────────────────────────── */
+.reg-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 14px;
+  animation: reg-fade-up 250ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.reg-banner--error {
+  background: var(--error-container);
+  color: var(--on-error-container);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.reg-banner--success {
+  background: var(--surface-container-high);
+  color: var(--on-surface);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+.reg-banner-icon {
+  font-size: 20px;
+  color: var(--error);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.reg-banner-success-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.reg-banner-success-icon ion-icon {
+  font-size: 24px;
+}
+
+.reg-banner-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.reg-banner-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.02em;
+}
+
+.reg-banner--error .reg-banner-title {
+  color: var(--error);
+}
+
+.reg-banner-msg {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 16px;
+  opacity: 0.9;
+}
+
+/* ── Form Card ───────────────────────────── */
+.reg-card {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 20px;
+  background: rgba(27, 27, 31, 0.95);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  animation: reg-fade-up 550ms cubic-bezier(0.22, 1, 0.36, 1) 80ms both;
+}
+
+/* ── Field ────────────────────────────────── */
+.reg-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reg-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--outline);
+}
+
+.reg-error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--error);
+}
+
+/* ── Input Row ────────────────────────────── */
+.reg-input-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+  border-radius: 12px;
+  background: var(--surface-container);
+  padding: 0 14px;
+  transition: background-color 200ms ease-out;
+}
+
+.reg-input-row:focus-within {
+  background: var(--surface-container-highest);
+}
+
+.reg-input-row--error {
+  background: rgba(147, 0, 10, 0.25);
+}
+
+.reg-input-icon {
+  margin-right: 10px;
+  font-size: 20px;
+  color: var(--outline);
+  flex-shrink: 0;
+}
+
+.reg-input {
+  --background: transparent;
+  --color: var(--on-surface);
+  --placeholder-color: var(--outline);
+  --padding-start: 0;
+  --padding-end: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --box-shadow: none;
+  flex: 1;
+  min-width: 0;
+  height: 52px;
+  font-size: 16px;
+}
+
+.reg-input:focus {
+  --box-shadow: none;
+  outline: none;
+}
+
+.reg-input::part(native) {
+  border-bottom: none;
+}
+
+.reg-eye-btn {
+  background: transparent;
+  border: none;
+  color: var(--outline);
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 200ms ease-out;
+}
+
+.reg-eye-btn:hover {
+  color: var(--on-surface);
+}
+
+.reg-eye-btn ion-icon {
+  font-size: 20px;
+}
+
+/* ── Terms Checkbox ───────────────────────── */
+.reg-terms {
+  padding-top: 4px;
+}
+
+.reg-terms-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.reg-checkbox-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-top: 2px;
+}
+
+.reg-checkbox {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.reg-checkbox-custom {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--surface-container);
+  border: 2px solid var(--outline-variant);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--on-primary-container);
+  transition: all 200ms ease-out;
+}
+
+.reg-checkbox:checked + .reg-checkbox-custom {
+  background: var(--primary-container);
+  border-color: var(--primary-container);
+}
+
+.reg-checkbox-custom:hover {
+  border-color: var(--outline);
+}
+
+.reg-checkbox-custom ion-icon {
+  font-size: 16px;
+  transform: scale(0);
+  transition: transform 200ms ease-out;
+}
+
+.reg-checkbox:checked + .reg-checkbox-custom ion-icon {
+  transform: scale(1);
+}
+
+.reg-terms-text {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--on-surface-variant);
+  flex: 1;
+  padding-top: 2px;
+}
+
+.reg-link {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.reg-link:hover {
+  text-decoration: underline;
+}
+
+/* ── Submit Button ────────────────────────── */
+.reg-submit-wrap {
+  padding-top: 4px;
+}
+
+.reg-submit-btn {
+  width: 100%;
+  height: 52px;
+  background: var(--primary-container);
+  color: var(--on-primary);
+  border: none;
+  border-radius: 9999px;
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 10px 15px -3px rgba(124, 58, 237, 0.25);
+  transition: all 200ms ease-out;
+}
+
+.reg-submit-btn:hover:not(:disabled) {
+  background: var(--primary);
+}
+
+.reg-submit-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.reg-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.reg-submit-text {
+  flex-shrink: 0;
+}
+
+.reg-submit-icon {
+  font-size: 20px;
+  transition: transform 200ms ease-out;
+}
+
+.reg-submit-btn:hover .reg-submit-icon {
+  transform: translateX(4px);
+}
+
+.reg-spinner {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(237, 224, 255, 0.35);
+  border-top-color: var(--on-primary-container);
+  animation: reg-spin 700ms linear infinite;
+}
+
+/* ── Login Switch ─────────────────────────── */
+.reg-switch {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  gap: 4px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--on-surface-variant);
+}
+
+.reg-switch ion-icon {
+  display: none;
+}
+
+.reg-link-signin {
+  --color: var(--primary);
+  --background: transparent;
+  --background-activated: transparent;
+  --background-hover: transparent;
+  --padding-start: 2px;
+  --padding-end: 2px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --min-height: 0;
+  --border-radius: 0;
+  display: inline-flex;
+  align-items: center;
+  width: auto;
+  height: auto;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  margin: 0;
+  --box-shadow: none;
+}
+
+.reg-link-signin::part(native) {
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  text-transform: none;
+  border-radius: 0;
+  --box-shadow: none;
+}
+
+/* ── Footer ───────────────────────────────── */
+.reg-footer {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  text-align: center;
+  margin-top: auto;
+  padding-top: 16px;
+  animation: reg-fade-up 550ms cubic-bezier(0.22, 1, 0.36, 1) 160ms both;
+}
+
+.reg-footer__legal {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: rgba(74, 68, 85, 0.8);
+}
+
+.reg-footer__legal .footer-link {
+  text-decoration: underline;
+}
+
+.reg-footer__legal .footer-link:hover {
+  color: var(--muted);
+}
+
+/* ── Animations ───────────────────────────── */
+@keyframes reg-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes reg-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reg-header,
+  .reg-card,
+  .reg-footer {
+    animation: none;
+  }
+
+  .reg-spinner {
+    animation-duration: 1200ms;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .reg-input-row {
+    background: #000;
+    border: 1px solid var(--on-surface);
+  }
+
+  .reg-card {
+    border: 1px solid var(--on-surface);
+  }
+}

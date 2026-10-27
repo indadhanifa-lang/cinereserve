@@ -1,0 +1,437 @@
+.pi-page {
+  --primary: #7c3aed;
+  --primary-container: #7c3aed;
+  --secondary: #d2bbff;
+  --on-primary: #ede0ff;
+  --on-primary-container: #ede0ff;
+  --bg: #131317;
+  --surface-low: #1b1b1f;
+  --surface: #1f1f23;
+  --surface-high: #2a292e;
+  --surface-highest: #353439;
+  --text: #e4e1e7;
+  --muted: #958da1;
+  --muted-strong: #ccc3d8;
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.pi-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  height: calc(56px + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(14, 14, 18, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.4);
+}
+
+.pi-header__back {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(31, 31, 35, 0.6);
+  border: none;
+  color: var(--text);
+  font-size: 22px;
+  cursor: pointer;
+  transition: background-color 150ms ease-out, transform 100ms ease-out;
+}
+
+.pi-header__back:active {
+  transform: scale(0.95);
+}
+
+.pi-header__back:hover {
+  background: var(--surface-high);
+}
+
+.pi-header__title {
+  flex: 1;
+  margin: 0;
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pi-header__spacer {
+  width: 44px;
+  flex-shrink: 0;
+}
+
+.pi-content {
+  flex: 1;
+  --background: var(--bg);
+  --color: var(--text);
+}
+
+.pi-body {
+  display: flex;
+  flex-direction: column;
+  padding: calc(56px + env(safe-area-inset-top) + 16px) 20px calc(24px + env(safe-area-inset-bottom));
+  min-height: 100%;
+}
+
+.pi-glow {
+  position: absolute;
+  top: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 288px;
+  height: 176px;
+  background: rgba(124, 58, 237, 0.12);
+  border-radius: 999px;
+  filter: blur(48px);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.pi-avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.pi-avatar-wrap {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.pi-avatar-ring {
+  width: 96px;
+  height: 96px;
+  border-radius: 999px;
+  padding: 4px;
+  background: linear-gradient(180deg, var(--secondary), var(--primary-container), var(--surface));
+  box-shadow: 0 0 24px rgba(124, 58, 237, 0.35);
+}
+
+.pi-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 999px;
+  background: var(--surface);
+  display: block;
+}
+
+.pi-avatar-initials,
+.pi-avatar-loading {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #7c3aed, #4c1d95);
+  color: #ede0ff;
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.pi-avatar-loading {
+  background: var(--surface);
+  color: var(--secondary);
+}
+
+.pi-profile-spinner {
+  height: 24px;
+  color: var(--muted-strong);
+}
+
+.pi-avatar-camera {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition: transform 100ms ease-out;
+}
+
+.pi-avatar-camera:active {
+  transform: scale(0.9);
+}
+
+.pi-avatar-camera:disabled {
+  opacity: 0.7;
+  cursor: default;
+  pointer-events: none;
+}
+
+.pi-avatar-camera ion-spinner {
+  width: 16px;
+  height: 16px;
+  color: var(--on-primary-container);
+}
+
+.pi-display-name {
+  margin: 0;
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.pi-display-email {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted-strong);
+}
+
+.pi-file-input {
+  display: none;
+}
+
+.pi-form {
+  margin-bottom: 24px;
+}
+
+.pi-form-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--surface-low);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+.pi-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pi-field__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-strong);
+}
+
+.pi-field__label-icon {
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.pi-field__input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pi-field__input {
+  width: 100%;
+  height: 48px;
+  padding: 0 16px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: none;
+  color: var(--text);
+  font-family: 'Poppins', var(--ion-font-family);
+  font-size: 14px;
+  line-height: 20px;
+  outline: none;
+  transition: background-color 200ms ease-out;
+}
+
+.pi-field__input:focus {
+  background: var(--surface-high);
+}
+
+.pi-field__input::placeholder {
+  color: var(--muted);
+}
+
+.pi-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.pi-save-btn {
+  width: 100%;
+  height: 52px;
+  border-radius: 999px;
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+  border: none;
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 24px rgba(124, 58, 237, 0.45);
+  transition: background-color 150ms ease-out, transform 100ms ease-out, box-shadow 150ms ease-out;
+}
+
+.pi-save-btn:active {
+  transform: scale(0.98);
+}
+
+.pi-save-btn:hover:not(:disabled) {
+  background: var(--secondary);
+  color: var(--on-primary);
+}
+
+.pi-save-btn--saving,
+.pi-save-btn--saved {
+  pointer-events: none;
+}
+
+.pi-save-btn__icon {
+  font-size: 20px;
+  transition: transform 200ms ease-out;
+}
+
+.pi-save-btn__icon--spin {
+  animation: pi-spin 800ms linear infinite;
+}
+
+.pi-save-btn__spinner {
+  width: 20px;
+  height: 20px;
+  color: currentColor;
+}
+
+.pi-cancel-btn {
+  width: 100%;
+  height: 44px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted-strong);
+  border: none;
+  font-family: 'Inter', var(--ion-font-family);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 150ms ease-out;
+}
+
+.pi-cancel-btn:active {
+  transform: scale(0.98);
+}
+
+.pi-cancel-btn:hover {
+  color: var(--text);
+}
+
+.pi-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 20px;
+  right: 20px;
+  max-width: 400px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--surface-high);
+  color: var(--text);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 300ms ease-out, transform 300ms ease-out;
+  z-index: 100;
+}
+
+.pi-toast--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.pi-toast__icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 18px;
+}
+
+.pi-toast__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.pi-toast__title {
+  font-family: 'Inter', var(--ion-font-family);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+
+.pi-toast__subtitle {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted-strong);
+}
+
+@keyframes pi-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

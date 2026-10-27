@@ -1,0 +1,19 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "laravel-boost": {
+        "type": "local",
+        "command": ["php", "artisan", "boost:mcp"]
+      }
+    }
+  },
+  "watcher": {
+    "ignore": ["storage/**", "vendor/**", "bootstrap/cache/**", ".phpunit.result.cache"]
+  },
+  "permissions": [
+    { "action": "shell", "resource": "php artisan migrate*", "effect": "ask" },
+    { "action": "shell", "resource": "php artisan migrate:fresh*", "effect": "ask" },
+    { "action": "shell", "resource": "composer require *", "effect": "ask" }
+  ]
+}

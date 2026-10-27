@@ -1,0 +1,614 @@
+/* ══════════════════════════════════════════
+   Payment — CineReserve dark/purple
+   ══════════════════════════════════════════ */
+
+.pay-page {
+  --primary: #7c3aed;
+  --secondary: #d2bbff;
+  --on-primary: #ede0ff;
+  --on-primary-container: #ede0ff;
+  --primary-container: #7c3aed;
+  --on-secondary-container: #bea8ff;
+  --bg: #131317;
+  --surface-low: #1b1b1f;
+  --surface: #1f1f23;
+  --surface-high: #2a292e;
+  --text: #e4e1e7;
+  --muted: #958da1;
+  --muted-strong: #ccc3d8;
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.pay-content {
+  flex: 1;
+  --background: var(--bg);
+  --color: var(--text);
+}
+
+/* ── Header ─────────────────────────────── */
+.pay-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pay-header__back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 12px;
+  background: rgba(124, 58, 237, 0.18);
+  color: var(--secondary);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.pay-header__back:active {
+  background: var(--primary-container);
+  color: var(--on-primary);
+}
+
+.pay-header__titles {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.pay-header__title {
+  margin: 0;
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 18px;
+  line-height: 22px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pay-header__movie {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Body ───────────────────────────────── */
+.pay-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 20px 24px;
+}
+
+.pay-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 0;
+  color: var(--secondary);
+}
+
+/* ── Sections ───────────────────────────── */
+.pay-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px rgba(124, 58, 237, 0.18);
+}
+
+.pay-section__label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--secondary);
+}
+
+.pay-section__code {
+  text-align: center;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--secondary);
+}
+
+.pay-section__movie {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pay-section__movie-icon {
+  color: var(--secondary);
+  font-size: 18px;
+}
+
+.pay-section__movie strong {
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pay-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pay-info__place {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pay-info__date {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted-strong);
+}
+
+.pay-info__time {
+  font-size: 13px;
+  color: var(--muted-strong);
+}
+
+.pay-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.pay-row span {
+  color: var(--muted-strong);
+}
+
+.pay-row strong {
+  font-weight: 600;
+  color: var(--text);
+  text-align: right;
+}
+
+.pay-row--total {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* ── Payment method (simulated only) ────── */
+.pay-method {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(124, 58, 237, 0.08);
+  border: 1.5px solid rgba(124, 58, 237, 0.55);
+}
+
+.pay-method__dot {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--secondary);
+  box-shadow: 0 0 10px rgba(124, 58, 237, 0.65);
+}
+
+.pay-method__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.pay-method__body strong {
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pay-method__body span {
+  font-size: 11.5px;
+  line-height: 15px;
+  color: var(--muted-strong);
+}
+
+.pay-method__badge {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(124, 58, 237, 0.25);
+  color: var(--secondary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ── Pay footer ─────────────────────────── */
+.pay-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.pay-footer__button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 15px 20px;
+  border: none;
+  border-radius: 14px;
+  background: var(--secondary);
+  color: #fff;
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: transform 150ms ease-out, opacity 150ms ease-out;
+}
+
+.pay-footer__button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.pay-footer__button--busy {
+  cursor: progress;
+  opacity: 0.85;
+}
+
+.pay-footer__spinner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pay-footer__spinner ion-spinner {
+  width: 16px;
+  height: 16px;
+}
+
+.pay-footer__note {
+  margin: 0;
+  text-align: center;
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--muted);
+}
+
+/* ── Error state ────────────────────────── */
+.pay-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.pay-error__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  background: rgba(124, 58, 237, 0.18);
+  color: var(--secondary);
+  font-size: 26px;
+}
+
+.pay-error__title {
+  margin: 8px 0 0;
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pay-error__text {
+  margin: 0;
+  max-width: 300px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--muted-strong);
+}
+
+.pay-error__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.pay-error__retry {
+  padding: 11px 24px;
+  border: none;
+  border-radius: 12px;
+  background: var(--secondary);
+  color: #fff;
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pay-error__back {
+  padding: 11px 24px;
+  border: 1px solid rgba(124, 58, 237, 0.5);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--secondary);
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ── Success modal ──────────────────────── */
+.pay-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.pay-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.pay-modal__sheet {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 420px;
+  max-height: 86vh;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid rgba(124, 58, 237, 0.25);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+
+.pay-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pay-modal__title {
+  margin: 0;
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 17px;
+  line-height: 22px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pay-modal__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 999px;
+  background: var(--surface-high);
+  color: var(--muted-strong);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+/* Scrolling works; the visual scrollbar stays hidden — app convention. */
+.pay-modal__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 16px 8px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.pay-modal__scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.pay-modal__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.pay-modal__section:last-child {
+  border-bottom: none;
+}
+
+.pay-modal__section-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--secondary);
+}
+
+.pay-modal__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.pay-modal__row span {
+  color: var(--muted-strong);
+}
+
+.pay-modal__row strong {
+  font-weight: 600;
+  color: var(--text);
+  text-align: right;
+}
+
+.pay-modal__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pay-modal__confirm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 16px;
+  border: none;
+  border-radius: 13px;
+  background: var(--secondary);
+  color: #fff;
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: transform 150ms ease-out;
+}
+
+.pay-modal__confirm:active {
+  transform: scale(0.98);
+}
+
+.pay-modal__secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 13px;
+  background: transparent;
+  color: var(--muted-strong);
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: transform 150ms ease-out;
+}
+
+.pay-modal__secondary:active {
+  transform: scale(0.98);
+}
+
+.pay-success__status {
+  color: var(--secondary);
+}
+
+/* ── Toast ──────────────────────────────── */
+.pay-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 20px;
+  right: 20px;
+  max-width: 400px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--surface-high);
+  color: var(--text);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 300ms ease-out, transform 300ms ease-out;
+  z-index: 100;
+}
+
+.pay-toast--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.pay-toast__icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 18px;
+}
+
+.pay-toast__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.pay-toast__title {
+  font-family: 'Inter', var(--ion-font-family);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+
+.pay-toast__subtitle {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted-strong);
+}
