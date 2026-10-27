@@ -46,7 +46,7 @@
 
 /* Logo alone is the header title/brand — no separate text title. */
 .movies-header__logo {
-  height: 40px;
+  height: 56px;
   width: auto;
   object-fit: contain;
 }
@@ -119,7 +119,7 @@
   border-radius: 12px;
   background: var(--surface-low);
   color: var(--text);
-  font-family: 'Inter', sans-serif;
+  font-family: var(--ion-font-family);
   font-size: 14px;
   line-height: 20px;
   outline: none;
@@ -179,7 +179,7 @@
   padding: 8px 16px;
   border: none;
   border-radius: 999px;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--ion-font-family);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -198,6 +198,89 @@
   background: var(--primary-container);
   color: var(--on-primary-container);
   box-shadow: 0 0 16px rgba(124, 58, 237, 0.35);
+}
+
+/* Genre dropdown: a pill showing the current value, with the real native
+   select stretched invisibly on top; outlined once a genre is picked. */
+.movies-select {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  max-width: 100%;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--surface-low);
+  color: var(--muted-strong);
+  font-family: var(--ion-font-family);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  transition: background-color 200ms ease-out, color 200ms ease-out, box-shadow 200ms ease-out;
+}
+
+.movies-select--active {
+  background: rgba(124, 58, 237, 0.16);
+  color: var(--secondary);
+  box-shadow: inset 0 0 0 1px rgba(124, 58, 237, 0.65);
+}
+
+.movies-select:focus-within {
+  outline: 2px solid var(--secondary);
+  outline-offset: 2px;
+}
+
+.movies-select ion-icon {
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.movies-select__value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.movies-select select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  opacity: 0;
+  /* Sizes the web dropdown list; page zoom is already off in index.html. */
+  font-family: var(--ion-font-family);
+  font-size: 12px;
+  color-scheme: dark;
+  cursor: pointer;
+}
+
+/* Desktop/web dropdown list; phones use their own native picker. */
+.movies-select option {
+  background: var(--surface-low);
+  color: var(--text);
+}
+
+/* Branch row: outlined when active, so it reads as a lighter, secondary
+   filter under the filled tab pills. */
+.movies-pill--outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.movies-pill--outline ion-icon {
+  font-size: 14px;
+}
+
+.movies-pill--outline.movies-pill--active {
+  background: rgba(124, 58, 237, 0.16);
+  color: var(--secondary);
+  box-shadow: inset 0 0 0 1px rgba(124, 58, 237, 0.65);
 }
 
 /* ── Empty State Card ────────────────────── */
@@ -302,7 +385,7 @@
   border-radius: 999px;
   background: var(--primary-container);
   color: var(--on-primary-container);
-  font-family: 'Inter', sans-serif;
+  font-family: var(--ion-font-family);
   font-size: 14px;
   font-weight: 600;
   line-height: 20px;
@@ -412,9 +495,10 @@
 }
 
 /* ── Movie Cards ─────────────────────────── */
-.movies-list {
-  display: flex;
-  flex-direction: column;
+/* Poster grid: 2 columns on phones, more as the screen widens. */
+.movies-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 12px;
 }
 
@@ -696,19 +780,20 @@
   padding: 10px 14px;
   border: none;
   border-radius: 12px;
-  background: var(--secondary);
+  background: var(--primary-container);
   color: #fff;
   font-family: 'Outfit', var(--ion-font-family);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
   letter-spacing: 0.02em;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
   cursor: pointer;
   transition: background-color 150ms ease-out, transform 150ms ease-out;
 }
 
 .schedule-item__reserve:active {
   transform: scale(0.98);
-  background: var(--primary-container);
+  background: #6d28d9;
 }
 
 @keyframes movies-modal-pop {
@@ -737,4 +822,68 @@
   0% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.4; transform: scale(1.4); }
   100% { opacity: 1; transform: scale(1); }
+}
+
+.movie-card--clickable {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: box-shadow 150ms ease-out, transform 100ms ease-out;
+}
+
+.movie-card--clickable:active {
+  transform: scale(0.98);
+}
+
+.movie-card--clickable:focus-visible {
+  outline: 2px solid var(--secondary);
+  outline-offset: 2px;
+}
+
+.movie-details {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.movie-details__top {
+  display: flex;
+  gap: 14px;
+}
+
+.movie-details__facts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+}
+
+.movie-details__fact dt {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-strong);
+}
+
+.movie-details__fact dd {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.movie-details__synopsis {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted-strong);
+  white-space: pre-line;
+}
+
+.movie-details__trailer {
+  align-self: flex-start;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--secondary);
+  text-decoration: none;
 }

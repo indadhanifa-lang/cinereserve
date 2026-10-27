@@ -81,29 +81,35 @@ export function GlobalSearch() {
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, []);
 
-  // Close after navigating to another page.
-  useEffect(() => {
+  // Close after navigating to another page (state adjusted during render).
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
     setOpen(false);
     setHighlighted(-1);
-  }, [pathname]);
+  }
 
-  // Debounced fetch: 280ms, stale responses ignored via request id.
-  useEffect(() => {
-    const trimmed = query.trim();
+  const changeQuery = (value: string) => {
+    setQuery(value);
+    setHighlighted(-1);
+    setFailed(false);
 
-    if (trimmed.length < 2) {
+    if (value.trim().length < 2) {
       requestSeq.current += 1;
       setResults([]);
       setLoading(false);
-      setFailed(false);
       setOpen(false);
-      setHighlighted(-1);
       return;
     }
 
     setLoading(true);
-    setFailed(false);
     setOpen(true);
+  };
+
+  // Debounced fetch: 280ms, stale responses ignored via request id.
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (trimmed.length < 2) return;
 
     const timer = window.setTimeout(async () => {
       const seq = ++requestSeq.current;
@@ -127,11 +133,8 @@ export function GlobalSearch() {
   }, [query]);
 
   const navigate = (result: SearchResult) => {
-    setOpen(false);
-    setQuery("");
-    setResults([]);
-    setHighlighted(-1);
-    router.push(result.href);
+    changeQuery("");
+    router.push(`${result.href}?q=${encodeURIComponent(result.title)}`);
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -169,10 +172,7 @@ export function GlobalSearch() {
         ref={inputRef}
         type="text"
         value={query}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setHighlighted(-1);
-        }}
+        onChange={(e) => changeQuery(e.target.value)}
         onKeyDown={onKeyDown}
         placeholder="Search screens, bookings, movies..."
         className="h-9 w-44 rounded-lg border border-border/30 bg-card pr-8 pl-9 text-sm text-foreground placeholder-muted-foreground shadow-inner transition-all focus:border-primary/40 focus:bg-accent focus:outline-none lg:w-64"

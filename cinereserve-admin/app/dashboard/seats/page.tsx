@@ -99,16 +99,6 @@ export default function SeatsPage() {
       });
   };
 
-  useEffect(() => {
-    if (selectedId) {
-      loadSeats(selectedId);
-    } else {
-      setSeats(null);
-      setSeatsError(null);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId]);
-
   const selectedScreen = (screens ?? []).find((screen) => String(screen.id) === selectedId) ?? null;
 
   const rowsCount = Number(form.rows);
@@ -584,7 +574,7 @@ export default function SeatsPage() {
 
   if (screens === null) {
     return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <div className="flex min-h-[50vh] items-center justify-center gap-2 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" />
         <span>Loading screens…</span>
       </div>
@@ -622,6 +612,7 @@ export default function SeatsPage() {
               setSelectedId(e.target.value);
               setSeats(null);
               setSeatsError(null);
+              if (e.target.value) loadSeats(e.target.value);
             }}
             className="h-10 min-w-48 rounded-xl border border-input bg-background px-3 text-sm text-foreground shadow-inner outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
@@ -649,7 +640,7 @@ export default function SeatsPage() {
       )}
 
       {selectedId && seats === null && !seatsError && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex min-h-[50vh] items-center justify-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
           <span>Loading seats…</span>
         </div>

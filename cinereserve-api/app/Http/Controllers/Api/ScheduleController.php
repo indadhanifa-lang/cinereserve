@@ -81,8 +81,10 @@ class ScheduleController extends Controller
         }
 
         try {
-            // status intentionally omitted: the DB default of "active" applies.
+            // Set explicitly: relying on the DB default leaves the in-memory
+            // model (and so the API response) with status = null.
             $schedule = Schedule::create([
+                'status' => 'active',
                 'movie_id' => $data['movie_id'],
                 'branch_id' => $branchId,
                 'screen_id' => $data['screen_id'],

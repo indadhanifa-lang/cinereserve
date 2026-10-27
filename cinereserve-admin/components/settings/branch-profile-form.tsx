@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import toast from "react-hot-toast";
-import { AlertCircle, ArrowLeft, Building2, Loader2, Mail, MapPin, Phone, Store } from "lucide-react";
+import { AlertCircle, Building2, Loader2, Mail, MapPin, Phone, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 type FormErrors = { name?: string; address?: string; city?: string; province?: string; phone?: string; email?: string };
 
-export default function BranchProfilePage() {
+export function BranchProfileForm({ onSaved }: { onSaved?: () => void }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [noBranch, setNoBranch] = useState(false);
@@ -114,6 +113,7 @@ export default function BranchProfilePage() {
         setPhone(data.branch.phone ?? "");
         setEmail(data.branch.email ?? "");
         toast.success("Branch profile has been updated.");
+        onSaved?.();
         window.dispatchEvent(new Event("admin-profile-updated"));
       }
     } catch {
@@ -124,40 +124,69 @@ export default function BranchProfilePage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-4xl">
-      <Link
-        href="/dashboard/settings"
-        className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        <span>Back to Settings</span>
-      </Link>
+    <>
+      <p className="mb-6 text-sm text-muted-foreground">
+        Cinema address and contact points for this branch.
+      </p>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_240px]">
-      <div className="rounded-2xl border border-border/30 bg-card p-5 sm:p-6">
-        <h1 className="mb-1 text-xl font-bold text-foreground">Branch Profile</h1>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Cinema address and contact points for this branch.
+      {formError && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle />
+          <AlertTitle>Update failed</AlertTitle>
+          <AlertDescription>{formError}</AlertDescription>
+        </Alert>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Loading branch…</span>
+        </div>
+      ) : noBranch ? (
+        <p className="text-sm text-muted-foreground">
+          No branch is assigned to your account yet. Contact a super admin.
         </p>
-
-        {formError && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle />
-            <AlertTitle>Update failed</AlertTitle>
-            <AlertDescription>{formError}</AlertDescription>
-          </Alert>
-        )}
-
-        {loading ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Loading branch…</span>
+      ) : (
+        <>
+          <div className="mb-6 flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => logoInputRef.current?.click()}
+              disabled={uploadingLogo}
+              className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted text-primary disabled:opacity-60"
+              aria-label="Change branch logo"
+            >
+              {logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logoUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <Building2 className="h-7 w-7" />
+              )}
+              {uploadingLogo && (
+                <span className="absolute inset-0 flex items-center justify-center bg-black/50">
+                  <Loader2 className="h-5 w-5 animate-spin text-white" />
+                </span>
+              )}
+            </button>
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleLogoChange}
+            />
+            <div>
+              <p className="text-sm font-medium text-foreground">Branch logo</p>
+              <p className="text-xs text-muted-foreground">JPG, PNG, or WebP. Up to 2MB.</p>
+              {logoError && (
+                <p className="mt-1 flex items-center gap-1.5 text-xs text-destructive" role="alert">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  {logoError}
+                </p>
+              )}
+            </div>
           </div>
-        ) : noBranch ? (
-          <p className="text-sm text-muted-foreground">
-            No branch is assigned to your account yet. Contact a super admin.
-          </p>
-        ) : (
+
           <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="branch-name">Branch Name</Label>
@@ -294,46 +323,8 @@ export default function BranchProfilePage() {
               )}
             </Button>
           </form>
-        )}
-      </div>
-
-      <div className="flex flex-col items-center gap-3 rounded-2xl border border-border/30 bg-card p-5 text-center">
-        <p className="self-start text-sm font-medium text-foreground">Branch Logo</p>
-        <button
-          type="button"
-          onClick={() => logoInputRef.current?.click()}
-          disabled={uploadingLogo || loading || noBranch}
-          className="relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-xl bg-muted text-primary disabled:opacity-60"
-          aria-label="Change branch logo"
-        >
-          {logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoUrl} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <Building2 className="h-9 w-9" />
-          )}
-          {uploadingLogo && (
-            <span className="absolute inset-0 flex items-center justify-center bg-black/50">
-              <Loader2 className="h-5 w-5 animate-spin text-white" />
-            </span>
-          )}
-        </button>
-        <input
-          ref={logoInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleLogoChange}
-        />
-        <p className="text-xs text-muted-foreground">JPG, PNG, or WebP. Up to 2MB.</p>
-        {logoError && (
-          <p className="flex items-center gap-1.5 text-xs text-destructive" role="alert">
-            <AlertCircle className="h-3.5 w-3.5" />
-            {logoError}
-          </p>
-        )}
-      </div>
-      </div>
-    </div>
+        </>
+      )}
+    </>
   );
 }

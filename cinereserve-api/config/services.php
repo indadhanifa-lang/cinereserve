@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    // Customer help chat (free tier: prompts may be used by Google to improve
+    // its products, so only public cinema data is ever sent — no customer PII).
+    'gemini' => [
+        'key' => env('GEMINI_API_KEY'),
+        'model' => env('GEMINI_MODEL', 'gemini-3.6-flash'),
+    ],
+
 ];

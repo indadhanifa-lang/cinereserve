@@ -9,8 +9,6 @@ const API_ORIGIN = API_BASE.replace(/\/api$/, "");
 
 const TOKEN_KEY = "cinereserve_token";
 
-let sessionToken: string | null = null;
-
 interface ApiError {
   status: number;
   message?: string;
@@ -18,22 +16,19 @@ interface ApiError {
   unavailable_seat_ids?: number[];
 }
 
+// "Remember me" → localStorage (survives closing the app/browser).
+// Otherwise → sessionStorage (survives reloads, cleared when the tab/app closes).
 export function getToken(): string | null {
-  if (sessionToken) return sessionToken;
-  return localStorage.getItem(TOKEN_KEY);
+  return sessionStorage.getItem(TOKEN_KEY) ?? localStorage.getItem(TOKEN_KEY);
 }
 
 export function setToken(token: string, remember: boolean): void {
-  sessionToken = token;
-  if (remember) {
-    localStorage.setItem(TOKEN_KEY, token);
-  } else {
-    localStorage.removeItem(TOKEN_KEY);
-  }
+  clearToken();
+  (remember ? localStorage : sessionStorage).setItem(TOKEN_KEY, token);
 }
 
 export function clearToken(): void {
-  sessionToken = null;
+  sessionStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(TOKEN_KEY);
 }
 
@@ -136,6 +131,10 @@ export async function apiPatchAuth<T>(path: string, body: unknown): Promise<T> {
  */
 export function resolveStorageUrl(path: string | null | undefined): string | null {
   if (!path) return null;
+  // The API stores absolute URLs built from APP_URL (often localhost), which a
+  // phone can't reach. Rebase our own /storage/ files onto the API origin.
+  const local = path.match(/^https?:\/\/[^/]+(\/storage\/.*)$/i);
+  if (local) return `${API_ORIGIN}${local[1]}`;
   if (/^https?:\/\//i.test(path)) return path;
   return `${API_ORIGIN}${path.startsWith("/") ? "" : "/"}${path}`;
 }

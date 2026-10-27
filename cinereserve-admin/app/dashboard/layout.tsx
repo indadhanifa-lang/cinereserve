@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -114,10 +114,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const meta = META[activeId];
   const [user, setUser] = useState<AdminUser | null>(null);
   const [navOpen, setNavOpen] = useState(false);
+  const [prevPathname, setPrevPathname] = useState(pathname);
 
-  useEffect(() => {
+  // Close the mobile nav after navigating (state adjusted during render).
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
     setNavOpen(false);
-  }, [pathname]);
+  }
 
   useEffect(() => {
     if (!navOpen) return;
@@ -303,8 +306,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           navOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
-          <div className="relative flex items-center gap-3 border-b border-border/20 px-1 pb-4">
+        <div className="scrollbar-hide flex min-h-0 flex-col gap-3 overflow-y-auto">
+          <div className="relative flex items-center gap-3 border-b border-border/20 pr-8 pb-3 pl-1 lg:pr-1">
             <button
               type="button"
               onClick={() => setNavOpen(false)}
@@ -316,7 +319,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-primary/20 text-primary shadow-[0_0_12px_rgba(124,58,237,0.25)]">
               <Clapperboard className="h-[22px] w-[22px]" />
             </div>
-            <div className="flex flex-col">
+            <div className="flex min-w-0 flex-col">
               <div className="flex items-center gap-1.5">
                 <span className="text-lg font-bold tracking-tight text-foreground">
                   CineReserve
@@ -356,7 +359,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
               <div className="flex min-w-0 flex-1 flex-col">
                 <span
-                  className="text-sm leading-snug font-medium break-words text-foreground"
+                  className="truncate text-[13px] leading-snug font-medium tracking-tight text-foreground"
                   title={branch.name}
                 >
                   {branch.name}
@@ -368,10 +371,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           )}
 
-          <nav className="flex flex-col gap-1">
+          <nav className="flex flex-col">
             {NAV_GROUPS.map((group) => (
               <div key={group.label}>
-                <div className="px-1 pt-2 pb-1">
+                <div className="px-1 pt-2.5 pb-1">
                   <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
                     {group.label}
                   </span>
@@ -384,15 +387,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       key={item.id}
                       href={item.href}
                       className={cn(
-                        "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-all",
+                        "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-sm transition-all",
                         active
                           ? "bg-primary font-semibold text-primary-foreground shadow-[0_0_14px_rgba(124,58,237,0.35)]"
                           : "text-muted-foreground hover:bg-accent hover:text-foreground"
                       )}
                       aria-current={active ? "page" : undefined}
                     >
-                      <Icon className="h-5 w-5 shrink-0" />
-                      <span>{item.label}</span>
+                      <Icon className="h-[18px] w-[18px] shrink-0" />
+                      <span className="truncate">{item.label}</span>
                     </Link>
                   );
                 })}
@@ -401,10 +404,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </nav>
         </div>
 
-        <div className="pt-2">
+        <div className="pt-3">
           <div className="flex items-center justify-between gap-2 rounded-lg bg-card p-2">
             <div className="flex min-w-0 items-center gap-2">
-              <Avatar name={displayName} avatarUrl={user?.avatar_url ?? null} className="h-9 w-9" />
+              <Avatar name={displayName} avatarUrl={user?.avatar_url ?? null} className="h-8 w-8" />
               <div className="flex min-w-0 flex-col">
                 <span className="truncate text-sm font-semibold text-foreground">{displayName}</span>
                 <span className="truncate text-xs text-muted-foreground">{displayRole}</span>
@@ -604,7 +607,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <p className="text-sm text-muted-foreground">{meta.subtitle}</p>
           </div>
 
-          {children}
+          <Suspense>{children}</Suspense>
         </div>
       </main>
     </div>

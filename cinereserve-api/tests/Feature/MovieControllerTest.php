@@ -74,6 +74,70 @@ class MovieControllerTest extends TestCase
         $this->assertDatabaseHas('movies', ['title' => 'Sneaky', 'branch_id' => $adminBranch->id]);
     }
 
+    public function test_admin_can_update_own_movie_and_replace_genres(): void
+    {
+        [$branch] = $this->twoBranches();
+        $admin = $this->admin($branch);
+        $movie = $this->movie($branch, 'Old Title');
+        $slug = $movie->slug;
+
+        $response = $this->actingAs($admin, 'sanctum')->postJson("/api/admin/movies/{$movie->id}", [
+            'title' => 'New Title',
+            'duration_minutes' => 120,
+            'status' => 'inactive',
+            'genres' => 'Drama',
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('movie.title', 'New Title');
+        $response->assertJsonPath('movie.slug', $slug);
+        $response->assertJsonPath('movie.genres', ['Drama']);
+        $this->assertDatabaseHas('movies', ['id' => $movie->id, 'duration_minutes' => 120, 'status' => 'inactive']);
+
+        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/movies/{$movie->id}", [
+            'title' => 'New Title',
+            'duration_minutes' => 120,
+            'genres' => '',
+        ])->assertOk()->assertJsonPath('movie.genres', []);
+    }
+
+    public function test_admin_cannot_update_a_movie_from_another_branch(): void
+    {
+        [$adminBranch, $otherBranch] = $this->twoBranches();
+        $admin = $this->admin($adminBranch);
+        $foreignMovie = $this->movie($otherBranch, 'Theirs');
+
+        $this->actingAs($admin, 'sanctum')->postJson("/api/admin/movies/{$foreignMovie->id}", [
+            'title' => 'Hijacked',
+            'duration_minutes' => 90,
+        ])->assertNotFound();
+
+        $this->assertDatabaseHas('movies', ['id' => $foreignMovie->id, 'title' => 'Theirs']);
+    }
+
+    public function test_admin_can_toggle_status_only_on_own_branch_movies(): void
+    {
+        [$adminBranch, $otherBranch] = $this->twoBranches();
+        $admin = $this->admin($adminBranch);
+        $movie = $this->movie($adminBranch, 'Ours');
+        $foreignMovie = $this->movie($otherBranch, 'Theirs');
+
+        $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/admin/movies/{$movie->id}/status", ['status' => 'inactive'])
+            ->assertOk()
+            ->assertJsonPath('movie.status', 'inactive');
+        $this->assertDatabaseHas('movies', ['id' => $movie->id, 'status' => 'inactive', 'title' => 'Ours']);
+
+        $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/admin/movies/{$movie->id}/status", ['status' => 'archived'])
+            ->assertStatus(422);
+
+        $this->actingAs($admin, 'sanctum')
+            ->patchJson("/api/admin/movies/{$foreignMovie->id}/status", ['status' => 'inactive'])
+            ->assertNotFound();
+        $this->assertDatabaseMissing('movies', ['id' => $foreignMovie->id, 'status' => 'inactive']);
+    }
+
     public function test_admin_without_a_branch_gets_a_404(): void
     {
         $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'branch_id' => null]);
@@ -100,6 +164,26 @@ class MovieControllerTest extends TestCase
         $response->assertStatus(422);
         $response->assertJsonPath('message', 'The selected movie does not belong to your branch.');
         $this->assertDatabaseCount('schedules', 0);
+    }
+
+    public function test_created_schedule_response_includes_active_status(): void
+    {
+        [$branch] = $this->twoBranches();
+        $admin = $this->admin($branch);
+        $screen = Screen::create(['branch_id' => $branch->id, 'name' => 'Screen 1', 'capacity' => 40]);
+        $movie = $this->movie($branch, 'Ours');
+
+        $response = $this->actingAs($admin, 'sanctum')->postJson('/api/schedules', [
+            'movie_id' => $movie->id,
+            'screen_id' => $screen->id,
+            'show_date' => now()->addDay()->toDateString(),
+            'start_time' => '10:00',
+            'end_time' => '12:00',
+            'ticket_price' => 250,
+        ]);
+
+        $response->assertCreated();
+        $response->assertJsonPath('schedule.status', 'active');
     }
 
     private function movie(Branch $branch, string $title): Movie

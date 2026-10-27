@@ -103,6 +103,40 @@
 }
 
 /* ── Sections ───────────────────────────── */
+.pay-hold {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(124, 58, 237, 0.16);
+  color: var(--on-primary);
+  font-size: 13px;
+  transition: background-color 300ms ease-out, color 300ms ease-out;
+}
+
+.pay-hold ion-icon {
+  font-size: 18px;
+  color: var(--secondary);
+}
+
+.pay-hold strong {
+  margin-left: auto;
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Last two minutes */
+.pay-hold--urgent {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fbbf24;
+}
+
+.pay-hold--urgent ion-icon {
+  color: #fbbf24;
+}
+
 .pay-section {
   display: flex;
   flex-direction: column;
@@ -199,23 +233,76 @@
 }
 
 /* ── Payment method (simulated only) ────── */
+.pay-section__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pay-methods {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .pay-method {
   display: flex;
   align-items: center;
   gap: 12px;
+  width: 100%;
   padding: 12px 14px;
   border-radius: 12px;
-  background: rgba(124, 58, 237, 0.08);
-  border: 1.5px solid rgba(124, 58, 237, 0.55);
+  background: transparent;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out, transform 100ms ease-out;
 }
 
+.pay-method:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.pay-method:disabled {
+  cursor: default;
+}
+
+.pay-method:disabled:not(.pay-method--selected) {
+  opacity: 0.5;
+}
+
+.pay-method--selected {
+  background: rgba(124, 58, 237, 0.08);
+  border-color: rgba(124, 58, 237, 0.55);
+}
+
+.pay-method:focus-visible {
+  outline: 2px solid var(--secondary);
+  outline-offset: 2px;
+}
+
+/* Radio dot: hollow ring, filled when selected. */
 .pay-method__dot {
   flex-shrink: 0;
   width: 16px;
   height: 16px;
   border-radius: 999px;
+  box-shadow: inset 0 0 0 2px var(--muted);
+  transition: background-color 150ms ease-out, box-shadow 150ms ease-out;
+}
+
+.pay-method--selected .pay-method__dot {
   background: var(--secondary);
   box-shadow: 0 0 10px rgba(124, 58, 237, 0.65);
+}
+
+.pay-method__icon {
+  flex-shrink: 0;
+  font-size: 22px;
+  color: var(--secondary);
 }
 
 .pay-method__body {
@@ -268,7 +355,7 @@
   padding: 15px 20px;
   border: none;
   border-radius: 14px;
-  background: var(--secondary);
+  background: var(--primary);
   color: #fff;
   font-family: 'Outfit', var(--ion-font-family);
   font-size: 15px;
@@ -280,6 +367,14 @@
 
 .pay-footer__button:active:not(:disabled) {
   transform: scale(0.98);
+}
+
+.pay-footer__button--paid {
+  background: #16a34a;
+}
+
+.pay-footer__button--paid ion-icon {
+  font-size: 20px;
 }
 
 .pay-footer__button--busy {
@@ -356,7 +451,7 @@
   padding: 11px 24px;
   border: none;
   border-radius: 12px;
-  background: var(--secondary);
+  background: var(--primary);
   color: #fff;
   font-family: 'Outfit', var(--ion-font-family);
   font-size: 13px;
@@ -512,7 +607,7 @@
   padding: 13px 16px;
   border: none;
   border-radius: 13px;
-  background: var(--secondary);
+  background: var(--primary);
   color: #fff;
   font-family: 'Outfit', var(--ion-font-family);
   font-size: 13.5px;

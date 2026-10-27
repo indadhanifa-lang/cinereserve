@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -15,17 +14,6 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Alex Chen',
-            'email' => 'alex.chen@cinereserve.com',
-            'password' => 'AdminPass123!',
-            'role' => 'admin',
-            'status' => 'active',
-        ]);
-
-        $this->call(ReelWorldBranchSeeder::class);
         $this->call(GenreSeeder::class);
     }
 }

@@ -49,7 +49,7 @@
 
 /* Logo alone is the header title/brand — no separate text title. */
 .history-header__logo {
-  height: 40px;
+  height: 56px;
   width: auto;
   object-fit: contain;
 }
@@ -220,7 +220,7 @@
   border-radius: 999px;
   background: var(--primary-container);
   color: var(--on-primary-container);
-  font-family: 'Inter', sans-serif;
+  font-family: var(--ion-font-family);
   font-size: 14px;
   font-weight: 600;
   line-height: 20px;

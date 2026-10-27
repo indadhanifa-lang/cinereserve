@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\AdminReservationController;
 use App\Http\Controllers\Api\AdminSearchController;
 use App\Http\Controllers\Api\AdminTicketController;
 use App\Http\Controllers\Api\BranchController;
+use App\Http\Controllers\Api\CustomerAssistantController;
 use App\Http\Controllers\Api\CustomerAuthController;
 use App\Http\Controllers\Api\CustomerHistoryController;
 use App\Http\Controllers\Api\CustomerPaymentController;
@@ -36,6 +37,8 @@ Route::get('/customer/me', [CustomerAuthController::class, 'me'])->middleware('a
 Route::patch('/customer/profile', [CustomerAuthController::class, 'updateProfile'])->middleware('auth:sanctum');
 Route::post('/customer/avatar', [CustomerAuthController::class, 'updateAvatar'])->middleware('auth:sanctum');
 Route::get('/customer/showtimes', [CustomerShowtimeController::class, 'index'])->middleware('auth:sanctum');
+// Throttled per user to stay inside the Gemini free-tier quota.
+Route::post('/customer/assistant', [CustomerAssistantController::class, 'chat'])->middleware(['auth:sanctum', 'throttle:20,1']);
 Route::get('/customer/tickets', [CustomerTicketController::class, 'index'])->middleware('auth:sanctum');
 Route::get('/customer/history', [CustomerHistoryController::class, 'index'])->middleware('auth:sanctum');
 Route::get('/customer/schedules/{scheduleId}/seats', [CustomerScheduleSeatController::class, 'show'])->middleware('auth:sanctum');
@@ -54,6 +57,8 @@ Route::patch('/admin/branch', [BranchController::class, 'update'])->middleware('
 Route::post('/admin/branch/logo', [BranchController::class, 'updateLogo'])->middleware('auth:sanctum');
 Route::get('/admin/movies', [MovieController::class, 'index'])->middleware('auth:sanctum');
 Route::post('/admin/movies', [MovieController::class, 'store'])->middleware('auth:sanctum');
+Route::post('/admin/movies/{id}', [MovieController::class, 'update'])->middleware('auth:sanctum');
+Route::patch('/admin/movies/{id}/status', [MovieController::class, 'updateStatus'])->middleware('auth:sanctum');
 Route::get('/admin/genres', [GenreController::class, 'index'])->middleware('auth:sanctum');
 Route::post('/admin/genres', [GenreController::class, 'store'])->middleware('auth:sanctum');
 Route::get('/screens', [ScreenController::class, 'index'])->middleware('auth:sanctum');

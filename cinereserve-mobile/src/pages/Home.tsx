@@ -4,18 +4,16 @@ import {
   alertCircleOutline,
   checkmarkCircleOutline,
   filmOutline,
-  flashOutline,
   homeOutline,
   notificationsOutline,
   personCircleOutline,
   personOutline,
   receiptOutline,
-  sparklesOutline,
   ticketOutline,
-  volumeHighOutline,
 } from "ionicons/icons";
 import { apiGetAuth, resolveStorageUrl } from "../lib/api";
 import { navigate } from "../lib/nav";
+import HelpChat from "../components/HelpChat";
 import "./Home.css";
 
 interface CustomerProfile {
@@ -51,8 +49,19 @@ interface ShowtimeMovie {
   upcoming_schedules: UpcomingSchedule[];
 }
 
+interface ComingSoonMovie {
+  id: number;
+  title: string;
+  poster_url: string | null;
+  duration_minutes: number | null;
+  release_date: string;
+  age_rating: string | null;
+  genres: string[];
+}
+
 interface ShowtimesResponse {
   movies: ShowtimeMovie[];
+  coming_soon?: ComingSoonMovie[];
 }
 
 interface PendingReservation {
@@ -73,6 +82,21 @@ interface PendingResponse {
   reservations: PendingReservation[];
 }
 
+/** Subset of /customer/tickets used by the "Your Next Show" card. */
+interface UpcomingTicket {
+  id: number;
+  is_active: boolean;
+  movie: { title: string } | null;
+  schedule: { show_date: string; start_time: string } | null;
+  branch: { name: string | null };
+  screen: { name: string | null };
+  seats: { label: string }[];
+}
+
+interface TicketsResponse {
+  tickets: UpcomingTicket[];
+}
+
 const getInitials = (name: string): string => {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
@@ -88,6 +112,13 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
     if (apiError.message) return apiError.message;
   }
   return fallback;
+};
+
+/** "Opens Nov 14, 2026" — parsed as a local date so the day never shifts. */
+const formatReleaseDate = (releaseDate: string): string => {
+  const [year, month, day] = releaseDate.slice(0, 10).split("-").map(Number);
+  const date = new Date(year, (month ?? 1) - 1, day ?? 1);
+  return `Opens ${date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`;
 };
 
 /** "Today • 6:00 PM" / "Tomorrow • 6:00 PM" / "Sep 27 • 6:00 PM" */
@@ -108,11 +139,38 @@ const formatShowtime = (schedule: { show_date: string; start_time: string }): st
     dayLabel = target.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   }
 
-  const [rawHours, minutes] = schedule.start_time.split(":").map(Number);
+  return `${dayLabel} • ${formatTime(schedule.start_time)}`;
+};
+
+/** HH:MM:SS → "6:00 PM" */
+const formatTime = (time: string): string => {
+  const [rawHours, minutes] = time.split(":").map(Number);
   const hours = rawHours ?? 0;
   const period = hours >= 12 ? "PM" : "AM";
   const hour12 = hours % 12 || 12;
-  return `${dayLabel} • ${hour12}:${String(minutes ?? 0).padStart(2, "0")} ${period}`;
+  return `${hour12}:${String(minutes ?? 0).padStart(2, "0")} ${period}`;
+};
+
+// Schedules are cinema wall-clock times (Asia/Manila, fixed UTC+8, no DST),
+// so they are pinned to that offset instead of the device's timezone.
+const CINEMA_TIMEZONE = "Asia/Manila";
+const showtimeMs = (showDate: string, time: string): number =>
+  new Date(`${showDate}T${time}+08:00`).getTime();
+
+/** Cinema-local today as YYYY-MM-DD (en-CA formats dates that way). */
+const cinemaToday = (): string =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: CINEMA_TIMEZONE }).format(new Date());
+
+/** "In 2 days" / "In 2h 15m" / "In 40m" / "Starting now" / "Now playing" */
+const formatCountdown = (startMs: number, nowMs: number): string => {
+  const diffMs = startMs - nowMs;
+  if (diffMs <= 0) return "Now playing";
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "Starting now";
+  const days = Math.floor(mins / 1440);
+  if (days >= 1) return `In ${days} ${days === 1 ? "day" : "days"}`;
+  const hours = Math.floor(mins / 60);
+  return hours > 0 ? `In ${hours}h ${mins % 60}m` : `In ${mins}m`;
 };
 
 /** "250.00" → "₱250.00" — display only; the payment page re-fetches the
@@ -130,6 +188,65 @@ const formatHoldExpiry = (iso: string | null): string | null => {
   if (Number.isNaN(date.getTime())) return null;
   return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 };
+
+/**
+ * Swipeable carousel that also auto-advances every 5s, wrapping to the first
+ * card. A manual swipe or dot tap re-arms the countdown, a finger on it pauses
+ * it, and reduced motion turns autoplay off. Spread `props` on the scroller;
+ * cards are assumed to sit 12px apart.
+ */
+function useAutoCarousel(count: number) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const heldRef = useRef(false);
+  const [active, setActive] = useState(0);
+
+  /** Active dot follows the snapped card; the last dot wins once scrolled to the end
+   * (the last card can't snap to the start edge when it's narrower than the viewport). */
+  const onScroll = () => {
+    const el = ref.current;
+    const first = el?.firstElementChild as HTMLElement | null;
+    if (!el || !first) return;
+    const atEnd = el.scrollLeft >= el.scrollWidth - el.clientWidth - 2;
+    const step = first.offsetWidth + 12; // card width + gap
+    setActive(atEnd ? el.children.length - 1 : Math.round(el.scrollLeft / step));
+  };
+
+  const goTo = useCallback((index: number) => {
+    const el = ref.current;
+    const first = el?.firstElementChild as HTMLElement | null;
+    const target = el?.children[index] as HTMLElement | undefined;
+    if (!el || !first || !target) return;
+    el.scrollTo({ left: target.offsetLeft - first.offsetLeft, behavior: "smooth" });
+  }, []);
+
+  useEffect(() => {
+    if (count < 2) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // Interval (not timeout) so a tick skipped while held doesn't stall autoplay.
+    const timer = setInterval(() => {
+      if (heldRef.current) return;
+      goTo((Math.min(active, count - 1) + 1) % count);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [active, count, goTo]);
+
+  const hold = (held: boolean) => () => {
+    heldRef.current = held;
+  };
+
+  return {
+    active,
+    goTo,
+    props: {
+      ref,
+      onScroll,
+      onPointerDown: hold(true),
+      onPointerUp: hold(false),
+      onPointerCancel: hold(false),
+      onPointerLeave: hold(false),
+    },
+  };
+}
 
 const ProjectorIcon: React.FC = () => (
   <svg
@@ -161,10 +278,15 @@ const Home: React.FC = () => {
 
   const [user, setUser] = useState<CustomerProfile | null>(null);
   const [movies, setMovies] = useState<ShowtimeMovie[]>([]);
+  const [comingSoon, setComingSoon] = useState<ComingSoonMovie[]>([]);
+  const [upcomingTickets, setUpcomingTickets] = useState<UpcomingTicket[]>([]);
+  const ticketCarousel = useAutoCarousel(upcomingTickets.length);
+  const [now, setNow] = useState(() => Date.now());
   const [pendingReservations, setPendingReservations] = useState<PendingReservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [failedAvatarSrc, setFailedAvatarSrc] = useState<string | null>(null);
   const [failedPosterIds, setFailedPosterIds] = useState<number[]>([]);
+  const nowShowing = useAutoCarousel(movies.length);
   const [showToast, setShowToast] = useState(false);
   const [toastTitle, setToastTitle] = useState("");
   const [toastSubtitle, setToastSubtitle] = useState("");
@@ -188,14 +310,25 @@ const Home: React.FC = () => {
     const requestId = ++requestRef.current;
     setLoading(true);
 
-    const [profileResult, showtimesResult, pendingResult] = await Promise.allSettled([
+    const [profileResult, showtimesResult, pendingResult, ticketsResult] = await Promise.allSettled([
       apiGetAuth<ProfileResponse>("/customer/me"),
       apiGetAuth<ShowtimesResponse>("/customer/showtimes"),
       apiGetAuth<PendingResponse>("/customer/reservations/pending"),
+      apiGetAuth<TicketsResponse>("/customer/tickets"),
     ]);
 
     // A newer request superseded this one — discard every write.
     if (requestId !== requestRef.current) return;
+
+    setNow(Date.now());
+
+    // Active tickets come first, nearest showtime first. A failure just hides
+    // the section; the Tickets tab reports its own errors.
+    setUpcomingTickets(
+      ticketsResult.status === "fulfilled"
+        ? (ticketsResult.value.tickets ?? []).filter((ticket) => ticket.is_active && ticket.schedule)
+        : []
+    );
 
     if (profileResult.status === "fulfilled") {
       setUser(profileResult.value.user);
@@ -208,6 +341,7 @@ const Home: React.FC = () => {
 
     if (showtimesResult.status === "fulfilled") {
       setMovies(showtimesResult.value.movies ?? []);
+      setComingSoon(showtimesResult.value.coming_soon ?? []);
     } else {
       showToastMessage(
         "Unable to load movies",
@@ -229,6 +363,24 @@ const Home: React.FC = () => {
 
     setLoading(false);
   }, [showToastMessage]);
+
+  // Keeps the countdown and the "Showing Today" times current while Home stays open.
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const today = cinemaToday();
+  const todayShows = movies
+    .map((movie) => ({
+      movie,
+      schedules: movie.upcoming_schedules.filter(
+        (schedule) =>
+          schedule.show_date === today &&
+          showtimeMs(schedule.show_date, schedule.start_time) > now
+      ),
+    }))
+    .filter((show) => show.schedules.length > 0);
 
   // First entry and every return to the Home tab refreshes the data.
   useIonViewWillEnter(() => {
@@ -294,10 +446,6 @@ const Home: React.FC = () => {
         <IonContent scrollY className="home-content">
           <div className="home-body">
             <section className="home-hero">
-              <span className="home-hero__badge">
-                <IonIcon icon={sparklesOutline} />
-                AI-Powered Cinema
-              </span>
               <h1 className="home-hero__title">Welcome to CineReserve</h1>
               <p className="home-hero__subtext">
                 Find movies, Make reservations, and enjoy the show.
@@ -371,6 +519,85 @@ const Home: React.FC = () => {
               </section>
             )}
 
+            {upcomingTickets.length > 0 && (
+              <section className="home-pending" aria-label="Your Upcoming Shows">
+                <div className="section-label">
+                  <span>{upcomingTickets.length === 1 ? "Your Next Show" : "Your Upcoming Shows"}</span>
+                  {upcomingTickets.length > 1 && (
+                    <span className="section-label__accent">
+                      {upcomingTickets.length} Tickets
+                    </span>
+                  )}
+                </div>
+
+                {/* Swipe or let it auto-advance; the next card peeks in to hint there is more. */}
+                <div className="ticket-swipe" {...ticketCarousel.props}>
+                  {upcomingTickets.map((ticket) => {
+                    const schedule = ticket.schedule!;
+                    const title = ticket.movie?.title ?? "Untitled movie";
+                    const openTickets = () => navigate(ionRouter, "/tickets");
+
+                    return (
+                      <article
+                        className="pending-card next-ticket"
+                        key={ticket.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`View ticket for ${title}`}
+                        onClick={openTickets}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            openTickets();
+                          }
+                        }}
+                      >
+                        <div className="pending-card__top">
+                          <h3 className="pending-card__title">{title}</h3>
+                          <span className="pending-card__badge">
+                            {formatCountdown(
+                              showtimeMs(schedule.show_date, schedule.start_time),
+                              now
+                            )}
+                          </span>
+                        </div>
+                        <p className="pending-card__place">
+                          {[ticket.branch?.name ?? "Cinema", ticket.screen?.name]
+                            .filter(Boolean)
+                            .join(" • ")}
+                        </p>
+                        <p className="pending-card__showtime">{formatShowtime(schedule)}</p>
+                        {ticket.seats.length > 0 && (
+                          <p className="pending-card__seats">
+                            Seats: {ticket.seats.map((seat) => seat.label).join(", ")}
+                          </p>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+
+                {upcomingTickets.length > 1 && (
+                  <div className="showing-dots ticket-swipe__dots">
+                    {upcomingTickets.map((ticket, index) => {
+                      const current =
+                        index === Math.min(ticketCarousel.active, upcomingTickets.length - 1);
+                      return (
+                        <button
+                          key={ticket.id}
+                          type="button"
+                          className={`showing-dots__dot${current ? " showing-dots__dot--active" : ""}`}
+                          aria-label={`Show ticket for ${ticket.movie?.title ?? "movie"}`}
+                          aria-current={current ? "true" : undefined}
+                          onClick={() => ticketCarousel.goTo(index)}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            )}
+
             {loading ? (
               <div className="home-loading" role="status" aria-live="polite">
                 <IonSpinner name="dots" />
@@ -385,25 +612,18 @@ const Home: React.FC = () => {
                   </span>
                 </div>
 
-                <div className="showing-list">
+                <div className="showing-list" {...nowShowing.props}>
                   {movies.map((movie) => {
-                    const nearest = movie.upcoming_schedules[0];
                     const posterSrc = resolveStorageUrl(movie.poster_url);
                     const posterOk =
                       Boolean(posterSrc) &&
                       !failedPosterIds.includes(movie.id);
-                    const facts = [
-                      movie.age_rating,
-                      movie.duration_minutes
-                        ? `${movie.duration_minutes} min`
-                        : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" • ");
 
+                    // Poster only; the title lives in aria-label, and in the
+                    // placeholder when there is no poster to show.
                     return (
                       <article
-                        className="movie-card"
+                        className="poster-card"
                         key={movie.id}
                         role="button"
                         tabIndex={0}
@@ -416,55 +636,46 @@ const Home: React.FC = () => {
                           }
                         }}
                       >
-                        <div className="movie-card__poster">
-                          {posterOk ? (
-                            <img
-                              src={posterSrc!}
-                              alt={`${movie.title} poster`}
-                              onError={() =>
-                                setFailedPosterIds((prev) =>
-                                  prev.includes(movie.id)
-                                    ? prev
-                                    : [...prev, movie.id]
-                                )
-                              }
-                            />
-                          ) : (
-                            <div
-                              className="movie-card__poster-placeholder"
-                              aria-hidden="true"
-                            >
-                              <IonIcon icon={filmOutline} />
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="movie-card__body">
-                          <h3 className="movie-card__title">{movie.title}</h3>
-                          {movie.genres.length > 0 && (
-                            <p className="movie-card__genres">
-                              {movie.genres.join(" / ")}
-                            </p>
-                          )}
-                          {facts && <p className="movie-card__facts">{facts}</p>}
-
-                          {nearest && (
-                            <div className="movie-card__showtime">
-                              {nearest.branch?.name && (
-                                <span className="movie-card__branch">
-                                  {nearest.branch.name}
-                                </span>
-                              )}
-                              <span className="movie-card__time">
-                                {formatShowtime(nearest)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
+                        {posterOk ? (
+                          <img
+                            src={posterSrc!}
+                            alt=""
+                            onError={() =>
+                              setFailedPosterIds((prev) =>
+                                prev.includes(movie.id)
+                                  ? prev
+                                  : [...prev, movie.id]
+                              )
+                            }
+                          />
+                        ) : (
+                          <div className="poster-card__placeholder" aria-hidden="true">
+                            <IonIcon icon={filmOutline} />
+                            <span>{movie.title}</span>
+                          </div>
+                        )}
                       </article>
                     );
                   })}
                 </div>
+
+                {movies.length > 1 && (
+                  <div className="showing-dots">
+                    {movies.map((movie, index) => {
+                      const current = index === Math.min(nowShowing.active, movies.length - 1);
+                      return (
+                        <button
+                          key={movie.id}
+                          type="button"
+                          className={`showing-dots__dot${current ? " showing-dots__dot--active" : ""}`}
+                          aria-label={`Show ${movie.title}`}
+                          aria-current={current ? "true" : undefined}
+                          onClick={() => nowShowing.goTo(index)}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
               </section>
             ) : (
               <div className="coming-soon-card">
@@ -505,46 +716,99 @@ const Home: React.FC = () => {
               </div>
             )}
 
-            <div className="section-label">
-              <span>Upcoming Features</span>
-              <span className="section-label__accent">CineReserve 2.0</span>
-            </div>
+            {!loading && todayShows.length > 0 && (
+              <section className="home-today" aria-label="Showing Today">
+                <div className="section-label">
+                  <span>Showing Today</span>
+                  <span className="section-label__accent">Tap a time to book</span>
+                </div>
 
-            <div className="feature-list">
-              <div className="feature-card">
-                <div className="feature-card__icon">
-                  <IonIcon icon={volumeHighOutline} />
+                <div className="home-pending__list">
+                  {todayShows.map(({ movie, schedules }) => (
+                    <div className="today-card" key={movie.id}>
+                      <h3 className="today-card__title">{movie.title}</h3>
+                      <div className="today-card__times">
+                        {schedules.map((schedule) => (
+                          <button
+                            type="button"
+                            className="today-card__time"
+                            key={schedule.id}
+                            aria-label={`Book ${movie.title} at ${formatTime(schedule.start_time)}${
+                              schedule.branch?.name ? `, ${schedule.branch.name}` : ""
+                            }`}
+                            onClick={() =>
+                              navigate(ionRouter, `/booking/seats?schedule=${schedule.id}`)
+                            }
+                          >
+                            <span className="today-card__clock">
+                              {formatTime(schedule.start_time)}
+                            </span>
+                            {schedule.branch?.name && (
+                              <span className="today-card__branch">{schedule.branch.name}</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="feature-card__body">
-                  <div className="feature-card__heading">
-                    <span className="feature-card__title">Smart Pick</span>
-                    <span className="feature-card__badge">AI Core</span>
-                  </div>
-                  <p className="feature-card__text">
-                    AI seating tailored for optimal sound and sightlines,
-                    matched to each auditorium&apos;s acoustics.
-                  </p>
-                </div>
-              </div>
+              </section>
+            )}
 
-              <div className="feature-card">
-                <div className="feature-card__icon">
-                  <IonIcon icon={flashOutline} />
+            {comingSoon.length > 0 && (
+              <>
+                <div className="section-label">
+                  <span>Coming Soon</span>
+                  <span className="section-label__accent">
+                    {comingSoon.length} {comingSoon.length === 1 ? "Movie" : "Movies"}
+                  </span>
                 </div>
-                <div className="feature-card__body">
-                  <div className="feature-card__heading">
-                    <span className="feature-card__title">Instant Pass</span>
-                    <span className="feature-card__badge feature-card__badge--alt">
-                      Fast-Track
-                    </span>
-                  </div>
-                  <p className="feature-card__text">
-                    Reserve in seconds with live hall availability and
-                    tap-to-enter digital wallet boarding passes.
-                  </p>
+
+                <div className="feature-list">
+                  {comingSoon.map((movie) => {
+                    const posterSrc = resolveStorageUrl(movie.poster_url);
+                    const posterOk =
+                      Boolean(posterSrc) && !failedPosterIds.includes(movie.id);
+                    const facts = [
+                      movie.genres.join(" / "),
+                      movie.age_rating,
+                      movie.duration_minutes ? `${movie.duration_minutes} min` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" • ");
+
+                    return (
+                      <div className="feature-card" key={movie.id}>
+                        <div className="feature-card__poster">
+                          {posterOk ? (
+                            <img
+                              src={posterSrc!}
+                              alt={`${movie.title} poster`}
+                              onError={() =>
+                                setFailedPosterIds((prev) =>
+                                  prev.includes(movie.id) ? prev : [...prev, movie.id]
+                                )
+                              }
+                            />
+                          ) : (
+                            <IonIcon icon={filmOutline} aria-hidden="true" />
+                          )}
+                        </div>
+                        <div className="feature-card__body">
+                          <div className="feature-card__heading">
+                            <span className="feature-card__title">{movie.title}</span>
+                          </div>
+                          <span className="feature-card__badge">
+                            {formatReleaseDate(movie.release_date)}
+                          </span>
+                          {facts && <p className="feature-card__text">{facts}</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         </IonContent>
 
@@ -557,6 +821,8 @@ const Home: React.FC = () => {
             <span className="pi-toast__subtitle">{toastSubtitle}</span>
           </div>
         </div>
+
+        <HelpChat customerName={user?.name} />
 
         <nav className="bottom-nav">
           <a

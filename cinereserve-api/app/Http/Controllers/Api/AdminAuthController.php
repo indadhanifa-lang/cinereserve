@@ -94,7 +94,9 @@ class AdminAuthController extends Controller
 
         $user->name = $data['name'];
         $user->email = strtolower(trim($data['email']));
-        $user->phone = $data['phone'] ?? null;
+        if (array_key_exists('phone', $data)) {
+            $user->phone = $data['phone'];
+        }
         $user->save();
 
         return response()->json([

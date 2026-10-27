@@ -11,8 +11,12 @@ import { useSearchParams } from "react-router-dom";
 import {
   alertCircleOutline,
   arrowBackOutline,
+  cardOutline,
+  checkmarkCircleOutline,
   closeOutline,
   filmOutline,
+  timeOutline,
+  walletOutline,
 } from "ionicons/icons";
 import { apiGetAuth, apiPostAuth } from "../lib/api";
 import { navigate } from "../lib/nav";
@@ -27,6 +31,7 @@ interface PaymentSummary {
     discount_amount: string;
     total_amount: string;
     expires_at: string | null;
+    expires_in_seconds?: number | null;
     schedule_id: number | null;
     movie: { title: string | null };
     branch: { name: string | null };
@@ -93,6 +98,25 @@ const formatDate = (showDate: string): string => {
   });
 };
 
+type PaymentMethod = "gcash" | "card";
+
+// Demo: the choice is recorded with the payment, but no real charge is made.
+const PAYMENT_METHODS: { value: PaymentMethod; label: string; hint: string; icon: string }[] = [
+  { value: "gcash", label: "GCash", hint: "Pay with your GCash wallet", icon: walletOutline },
+  { value: "card", label: "Credit / Debit Card", hint: "Visa, Mastercard", icon: cardOutline },
+];
+
+/** Stored payment_method → display label ("gcash" → "GCash"). */
+const formatMethod = (value: string): string =>
+  PAYMENT_METHODS.find((option) => option.value === value)?.label ??
+  (value === "mock" ? "Mock Payment" : "Payment");
+
+/** 522000 ms → "8:42" */
+const formatHoldRemaining = (ms: number): string => {
+  const seconds = Math.ceil(ms / 1000);
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+};
+
 /** "250.00" → "₱250.00" — display only; totals always come from the backend. */
 const formatPrice = (value: string): string => {
   const amount = Number(value);
@@ -130,6 +154,13 @@ const Payment: React.FC = () => {
   );
   const [submitting, setSubmitting] = useState(false);
   const [paid, setPaid] = useState<PayResponse | null>(null);
+  // Closing the modal keeps `paid`, so the page stays in its paid state.
+  const [successOpen, setSuccessOpen] = useState(false);
+  const [method, setMethod] = useState<PaymentMethod>("gcash");
+  // Hold deadline on the device clock, derived from the server's
+  // seconds-remaining so a wrong phone clock can't shift the countdown.
+  const [holdDeadline, setHoldDeadline] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   const [showToast, setShowToast] = useState(false);
   const [toastTitle, setToastTitle] = useState("");
@@ -162,6 +193,9 @@ const Payment: React.FC = () => {
       );
       if (requestId !== requestRef.current) return;
       setSummary(response);
+      const seconds = response.reservation.expires_in_seconds;
+      setNow(Date.now());
+      setHoldDeadline(typeof seconds === "number" ? Date.now() + seconds * 1000 : null);
     } catch (err) {
       if (requestId !== requestRef.current) return;
       const status = (err as { status?: number }).status;
@@ -193,6 +227,8 @@ const Payment: React.FC = () => {
   useIonViewWillEnter(() => {
     // Re-entering must never resurrect a stale success modal.
     setPaid(null);
+    setSuccessOpen(false);
+    setHoldDeadline(null);
     setSummary(null);
     setSubmitting(false);
     void loadRef.current();
@@ -205,15 +241,35 @@ const Payment: React.FC = () => {
     []
   );
 
+  // Ticks the hold timer while payment is still possible.
+  useEffect(() => {
+    if (holdDeadline === null || paid || error) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [holdDeadline, paid, error]);
+
+  const holdRemainingMs = holdDeadline === null ? null : Math.max(0, holdDeadline - now);
+
+  // Hold ran out: show the expired state instead of a Pay button the server
+  // would reject. An in-flight payment is left to the server to decide.
+  useEffect(() => {
+    if (holdRemainingMs === 0 && !paid && !submitting) {
+      setError({
+        kind: "expired",
+        message: "Your seat hold has expired. Please choose your seats again.",
+      });
+    }
+  }, [holdRemainingMs, paid, submitting]);
+
   // Esc closes the success modal when it is open.
   useEffect(() => {
-    if (!paid) return;
+    if (!successOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setPaid(null);
+      if (event.key === "Escape") setSuccessOpen(false);
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [paid]);
+  }, [successOpen]);
 
   // Backend determines the amount — the button only echoes what the
   // summary returned. Single in-flight request: submitting guard blocks
@@ -225,9 +281,10 @@ const Payment: React.FC = () => {
     try {
       const response = await apiPostAuth<PayResponse>(
         `/customer/reservations/${reservationId}/pay`,
-        { payment_method: "mock" }
+        { payment_method: method }
       );
       setPaid(response);
+      setSuccessOpen(true);
     } catch (err) {
       const status = (err as { status?: number }).status;
       const message = getErrorMessage(err, "Please try again later.");
@@ -247,9 +304,13 @@ const Payment: React.FC = () => {
     } finally {
       setSubmitting(false);
     }
-  }, [reservationId, submitting, showToastMessage]);
+  }, [reservationId, submitting, method, showToastMessage]);
 
   const goBackToMovies = () => navigate(ionRouter, "/movies");
+
+  // Root navigation drops this page from history: Back after paying can
+  // never land on a "not payable" Payment screen.
+  const leaveAfterPayment = (path: string) => navigate(ionRouter, path, true);
 
   // Deep link back to the seat map when the schedule id is known; the
   // schedule came from the backend summary, never from client input.
@@ -328,6 +389,17 @@ const Payment: React.FC = () => {
               renderErrorCard()
             ) : reservation ? (
               <>
+                {holdRemainingMs !== null && !paid && (
+                  <div
+                    className={`pay-hold${holdRemainingMs < 120000 ? " pay-hold--urgent" : ""}`}
+                    role="timer"
+                  >
+                    <IonIcon icon={timeOutline} aria-hidden="true" />
+                    <span>Seats held for</span>
+                    <strong>{formatHoldRemaining(holdRemainingMs)}</strong>
+                  </div>
+                )}
+
                 <section className="pay-section">
                   <span className="pay-section__label">Reservation</span>
                   <div className="pay-section__code">{reservation.reservation_code}</div>
@@ -384,43 +456,81 @@ const Payment: React.FC = () => {
                 </section>
 
                 <section className="pay-section">
-                  <span className="pay-section__label">Payment Method</span>
-                  <div className="pay-method pay-method--selected" aria-pressed="true">
-                    <span className="pay-method__dot" aria-hidden="true" />
-                    <div className="pay-method__body">
-                      <strong>Mock Payment</strong>
-                      <span>Demo only — no real charge is made.</span>
-                    </div>
+                  <div className="pay-section__heading">
+                    <span className="pay-section__label" id="pay-method-label">
+                      Payment Method
+                    </span>
                     <span className="pay-method__badge">Demo</span>
+                  </div>
+                  <div className="pay-methods" role="radiogroup" aria-labelledby="pay-method-label">
+                    {PAYMENT_METHODS.map((option) => {
+                      const selected = option.value === method;
+                      return (
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          key={option.value}
+                          className={`pay-method${selected ? " pay-method--selected" : ""}`}
+                          disabled={submitting || paid !== null}
+                          onClick={() => setMethod(option.value)}
+                        >
+                          <span className="pay-method__dot" aria-hidden="true" />
+                          <IonIcon icon={option.icon} className="pay-method__icon" aria-hidden="true" />
+                          <span className="pay-method__body">
+                            <strong>{option.label}</strong>
+                            <span>{option.hint}</span>
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </section>
 
                 <div className="pay-footer">
-                  <button
-                    type="button"
-                    className={`pay-footer__button${submitting ? " pay-footer__button--busy" : ""}`}
-                    disabled={submitting}
-                    onClick={() => void payNow()}
-                  >
-                    {submitting ? (
-                      <span className="pay-footer__spinner">
-                        <IonSpinner name="crescent" />
-                        Processing…
-                      </span>
-                    ) : (
-                      `Pay ${formatPrice(reservation.total_amount)}`
-                    )}
-                  </button>
-                  <p className="pay-footer__note">
-                    Simulated payment — your card or wallet details are never collected.
-                  </p>
+                  {paid ? (
+                    <>
+                      <button
+                        type="button"
+                        className="pay-footer__button pay-footer__button--paid"
+                        onClick={() => leaveAfterPayment("/tickets")}
+                      >
+                        <IonIcon icon={checkmarkCircleOutline} />
+                        Paid — View My Ticket
+                      </button>
+                      <p className="pay-footer__note">
+                        Ref {paid.payment.payment_reference} • Ticket {paid.ticket.ticket_code}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className={`pay-footer__button${submitting ? " pay-footer__button--busy" : ""}`}
+                        disabled={submitting}
+                        onClick={() => void payNow()}
+                      >
+                        {submitting ? (
+                          <span className="pay-footer__spinner">
+                            <IonSpinner name="crescent" />
+                            Processing…
+                          </span>
+                        ) : (
+                          `Pay ${formatPrice(reservation.total_amount)}`
+                        )}
+                      </button>
+                      <p className="pay-footer__note">
+                        Simulated payment — your card or wallet details are never collected.
+                      </p>
+                    </>
+                  )}
                 </div>
               </>
             ) : null}
           </div>
         </IonContent>
 
-        {paid && (
+        {paid && successOpen && (
           <div className="pay-modal">
             <div className="pay-modal__backdrop" />
             <div
@@ -436,7 +546,7 @@ const Payment: React.FC = () => {
                   type="button"
                   className="pay-modal__close"
                   aria-label="Close"
-                  onClick={() => setPaid(null)}
+                  onClick={() => setSuccessOpen(false)}
                 >
                   <IonIcon icon={closeOutline} />
                 </button>
@@ -470,7 +580,7 @@ const Payment: React.FC = () => {
                 <div className="pay-modal__section">
                   <span className="pay-modal__section-label">Amount Paid</span>
                   <div className="pay-modal__row">
-                    <span>{paid.payment.payment_method === "mock" ? "Mock Payment" : "Payment"}</span>
+                    <span>{formatMethod(paid.payment.payment_method)}</span>
                     <strong>{formatPrice(paid.payment.amount)}</strong>
                   </div>
                 </div>
@@ -497,7 +607,7 @@ const Payment: React.FC = () => {
                   type="button"
                   className="pay-modal__confirm"
                   aria-label="View my ticket"
-                  onClick={() => navigate(ionRouter, "/tickets")}
+                  onClick={() => leaveAfterPayment("/tickets")}
                 >
                   View My Ticket
                 </button>
@@ -505,7 +615,7 @@ const Payment: React.FC = () => {
                   type="button"
                   className="pay-modal__secondary"
                   aria-label="Back to home"
-                  onClick={() => navigate(ionRouter, "/home")}
+                  onClick={() => leaveAfterPayment("/home")}
                 >
                   Back to Home
                 </button>

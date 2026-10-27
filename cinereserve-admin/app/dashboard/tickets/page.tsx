@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EMPTY_STATES } from "@/lib/dashboard-nav";
 import { cn } from "@/lib/utils";
+import { useUrlSearch } from "@/lib/use-url-search";
 
 type Ticket = {
   id: number;
@@ -107,13 +108,12 @@ const DetailRow = ({ label, value }: { label: string; value: React.ReactNode }) 
 export default function TicketsPage() {
   const [tickets, setTickets] = useState<Ticket[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useUrlSearch();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("");
   const [dateFilter, setDateFilter] = useState<DateFilter>("");
   const [selected, setSelected] = useState<Ticket | null>(null);
 
   const loadTickets = () => {
-    setLoadError(null);
     fetch("/api/admin/tickets")
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
@@ -318,7 +318,10 @@ export default function TicketsPage() {
       <div className="flex flex-col items-center gap-3 rounded-2xl border border-border/30 bg-card p-10 text-center">
         <AlertCircle className="h-8 w-8 text-destructive" />
         <p className="text-sm text-destructive">{loadError}</p>
-        <Button type="button" onClick={loadTickets} className="h-10 gap-2 rounded-full px-4">
+        <Button type="button" onClick={() => {
+          setLoadError(null);
+          loadTickets();
+        }} className="h-10 gap-2 rounded-full px-4">
           <RefreshCw className="h-4 w-4" />
           Retry
         </Button>
@@ -328,7 +331,7 @@ export default function TicketsPage() {
 
   if (tickets === null) {
     return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <div className="flex min-h-[50vh] items-center justify-center gap-2 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" />
         <span>Loading tickets…</span>
       </div>

@@ -68,11 +68,12 @@ const Login: React.FC = () => {
       });
       setToken(res.token, remember);
       navigate(ionRouter, '/home');
-    } catch (err: any) {
-      if (err.status === 403) {
-        setBanner(err.message || 'Your account is inactive.');
+    } catch (err: unknown) {
+      const apiErr = err as { status?: number; message?: string };
+      if (apiErr.status === 403) {
+        setBanner(apiErr.message || 'Your account is inactive.');
       } else {
-        setBanner(err.message || 'Invalid email or password.');
+        setBanner(apiErr.message || 'Invalid email or password.');
       }
     } finally {
       setLoading(false);
@@ -190,9 +191,9 @@ const Login: React.FC = () => {
           <div className="login-footer">
             <p className="login-footer__legal">
               By continuing, you agree to CineReserve AI&apos;s{' '}
-              <IonButton fill="clear" className="footer-link">Terms</IonButton>
+              <button type="button" className="footer-link">Terms</button>
               {' '}&amp;{' '}
-              <IonButton fill="clear" className="footer-link">Privacy Policy</IonButton>
+              <button type="button" className="footer-link">Privacy Policy</button>
             </p>
           </div>
         </div>

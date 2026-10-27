@@ -240,7 +240,7 @@
 }
 
 .seat--selected .seat__premium-tag {
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(31, 17, 71, 0.75);
 }
 
 .seat--reserved .seat__premium-tag {
@@ -254,7 +254,8 @@
 .seat--selected {
   background: var(--secondary);
   border-color: var(--secondary);
-  color: #fff;
+  /* Dark text: white on this light purple is unreadable. */
+  color: #1f1147;
   box-shadow: 0 0 14px rgba(124, 58, 237, 0.65);
 }
 
@@ -448,7 +449,7 @@
   padding: 13px 26px;
   border: none;
   border-radius: 14px;
-  background: var(--secondary);
+  background: var(--primary);
   color: #fff;
   font-family: 'Outfit', var(--ion-font-family);
   font-size: 14px;
@@ -518,7 +519,7 @@
   padding: 11px 24px;
   border: none;
   border-radius: 12px;
-  background: var(--secondary);
+  background: var(--primary);
   color: #fff;
   font-family: 'Outfit', var(--ion-font-family);
   font-size: 13px;
@@ -743,7 +744,7 @@
   padding: 13px 16px;
   border: none;
   border-radius: 13px;
-  background: var(--secondary);
+  background: var(--primary);
   color: #fff;
   font-family: 'Outfit', var(--ion-font-family);
   font-size: 13.5px;
@@ -768,7 +769,7 @@
    genuine "coming next" payment button gets the dashed placeholder. */
 .seat-modal__confirm:disabled.seat-modal__confirm--busy {
   border: none;
-  background: var(--secondary);
+  background: var(--primary);
   color: #fff;
   cursor: progress;
   opacity: 0.85;
