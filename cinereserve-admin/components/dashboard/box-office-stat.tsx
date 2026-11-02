@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Wallet } from "lucide-react";
 import { LOADING } from "@/components/dashboard/loading-value";
+import { CountUp, pesoCount } from "@/components/dashboard/count-up";
 
 type BoxOffice = {
   today_box_office: string;
@@ -29,10 +30,7 @@ export function BoxOfficeStat() {
   const value = failed
     ? "—"
     : boxOffice
-      ? `₱${Number(boxOffice.today_box_office).toLocaleString("en-US", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })}`
+      ? <CountUp value={Number(boxOffice.today_box_office)} format={pesoCount} />
       : LOADING;
   const hint = failed
     ? "Unavailable"
@@ -44,7 +42,7 @@ export function BoxOfficeStat() {
   const footValue = failed
     ? "—"
     : boxOffice
-      ? String(boxOffice.today_paid_transactions)
+      ? <CountUp value={boxOffice.today_paid_transactions} />
       : LOADING;
 
   return (

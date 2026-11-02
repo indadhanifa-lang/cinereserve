@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Armchair } from "lucide-react";
 import { LOADING } from "@/components/dashboard/loading-value";
+import { CountUp } from "@/components/dashboard/count-up";
 
 type Occupancy = {
   rate: number;
@@ -25,7 +26,17 @@ export function OccupancyStat() {
       .catch(() => setFailed(true));
   }, []);
 
-  const value = failed ? "0%" : occupancy ? `${occupancy.rate}%` : LOADING;
+  const value = failed ? (
+    "0%"
+  ) : occupancy ? (
+    // Keeps the decimals the API sends (e.g. 42.5%) while counting.
+    <CountUp
+      value={occupancy.rate}
+      format={(n) => `${n.toFixed(Number.isInteger(occupancy.rate) ? 0 : 1)}%`}
+    />
+  ) : (
+    LOADING
+  );
   const hint = failed
     ? "Unavailable"
     : occupancy
@@ -33,7 +44,7 @@ export function OccupancyStat() {
         ? "No active seats"
         : `${occupancy.occupied} seats reserved`
       : "Loading…";
-  const footValue = failed ? "—" : occupancy ? `${occupancy.capacity} Seats` : LOADING;
+  const footValue = failed ? "—" : occupancy ? <><CountUp value={occupancy.capacity} /> Seats</> : LOADING;
 
   return (
     <div className="flex flex-col justify-between rounded-xl border border-border/30 bg-card p-4 shadow-sm">
