@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\CustomerBranchController;
 use App\Http\Controllers\Api\CustomerHistoryController;
 use App\Http\Controllers\Api\CustomerNotificationController;
 use App\Http\Controllers\Api\CustomerPaymentController;
+use App\Http\Controllers\Api\CustomerRecommendationController;
 use App\Http\Controllers\Api\CustomerReservationController;
 use App\Http\Controllers\Api\CustomerScheduleSeatController;
 use App\Http\Controllers\Api\CustomerShowtimeController;
@@ -44,6 +45,7 @@ Route::post('/customer/avatar', [CustomerAuthController::class, 'updateAvatar'])
 Route::get('/customer/showtimes', [CustomerShowtimeController::class, 'index'])->middleware('auth:sanctum');
 // Throttled per user to stay inside the Gemini free-tier quota.
 Route::post('/customer/assistant', [CustomerAssistantController::class, 'chat'])->middleware(['auth:sanctum', 'throttle:20,1']);
+Route::get('/customer/recommendations', [CustomerRecommendationController::class, 'index'])->middleware(['auth:sanctum', 'role:customer', 'throttle:30,1']);
 Route::get('/customer/notifications', [CustomerNotificationController::class, 'index'])->middleware(['auth:sanctum', 'role:customer']);
 Route::post('/customer/notifications/seen', [CustomerNotificationController::class, 'seen'])->middleware(['auth:sanctum', 'role:customer']);
 Route::post('/customer/notifications/clear', [CustomerNotificationController::class, 'clear'])->middleware(['auth:sanctum', 'role:customer']);

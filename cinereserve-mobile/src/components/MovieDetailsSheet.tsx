@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { IonIcon, useIonRouter } from "@ionic/react";
-import { closeOutline, filmOutline } from "ionicons/icons";
+import { closeOutline, filmOutline, locationOutline, playCircleOutline } from "ionicons/icons";
 import { resolveStorageUrl } from "../lib/api";
 import { formatRuntime } from "../lib/hours";
 import { youtubeId } from "../lib/youtube";
@@ -80,6 +80,16 @@ const MovieDetailsSheet: React.FC<{ movie: MovieDetails; onClose: () => void }> 
     ),
   ];
 
+  // "PG-13 • 2h 35m • 2025 • English"
+  const meta = [
+    movie.age_rating,
+    movie.duration_minutes ? formatRuntime(movie.duration_minutes) : null,
+    movie.release_date?.slice(0, 4),
+    movie.language,
+  ]
+    .filter(Boolean)
+    .join(" • ");
+
   return (
     <>
     <div
@@ -90,62 +100,79 @@ const MovieDetailsSheet: React.FC<{ movie: MovieDetails; onClose: () => void }> 
       aria-label={`${movie.title} ${showtimes ? "showtimes" : "details"}`}
     >
       <div className="movies-schedule-modal__backdrop" />
-      <div className="movies-schedule-modal__sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="movies-schedule-modal__header">
-          <div className="movies-schedule-modal__heading">
-            <span className="movies-schedule-modal__title">{movie.title}</span>
-            <span className="movies-schedule-modal__subtitle">
-              {showtimes ? "Upcoming Showtimes" : "Movie Details"}
-            </span>
-          </div>
-          <button
-            type="button"
-            className="movies-schedule-modal__close"
-            onClick={onClose}
-            aria-label={showtimes ? "Close showtimes" : "Close details"}
-          >
-            <IonIcon icon={closeOutline} />
-          </button>
-        </div>
-
+      <div
+        className={`movies-schedule-modal__sheet${showtimes ? "" : " movies-schedule-modal__sheet--details"}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         {showtimes ? (
-          <div className="movies-schedule-modal__list">
-            {movie.upcoming_schedules.map((schedule) => (
-              <div className="schedule-item" key={schedule.id}>
-                <div className="schedule-item__top">
-                  <span className="schedule-item__branch">{schedule.branch?.name ?? "Cinema"}</span>
-                  {schedule.screen?.name && (
-                    <span className="schedule-item__screen">{schedule.screen.name}</span>
-                  )}
-                </div>
-                <div className="schedule-item__row">
-                  <span className="schedule-item__date">{formatDate(schedule.show_date)}</span>
-                  <span className="schedule-item__time">
-                    {formatTime(schedule.start_time)} – {formatTime(schedule.end_time)}
-                  </span>
-                </div>
-                <div className="schedule-item__row">
-                  <span className="schedule-item__price">
-                    ₱{Number(schedule.ticket_price).toFixed(2)}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  className="schedule-item__reserve"
-                  onClick={() => {
-                    onClose();
-                    navigate(ionRouter, `/booking/seats?schedule=${schedule.id}`);
-                  }}
-                >
-                  Reserve Seats
-                </button>
+          <>
+            <div className="movies-schedule-modal__header">
+              <div className="movies-schedule-modal__heading">
+                <span className="movies-schedule-modal__title">{movie.title}</span>
+                <span className="movies-schedule-modal__subtitle">
+                  Upcoming Showtimes
+                </span>
               </div>
-            ))}
-          </div>
+              <button
+                type="button"
+                className="movies-schedule-modal__close"
+                onClick={onClose}
+                aria-label="Close showtimes"
+              >
+                <IonIcon icon={closeOutline} />
+              </button>
+            </div>
+
+            <div className="movies-schedule-modal__list">
+              {movie.upcoming_schedules.map((schedule) => (
+                <div className="schedule-item" key={schedule.id}>
+                  <div className="schedule-item__top">
+                    <span className="schedule-item__branch">{schedule.branch?.name ?? "Cinema"}</span>
+                    {schedule.screen?.name && (
+                      <span className="schedule-item__screen">{schedule.screen.name}</span>
+                    )}
+                  </div>
+                  <div className="schedule-item__row">
+                    <span className="schedule-item__date">{formatDate(schedule.show_date)}</span>
+                    <span className="schedule-item__time">
+                      {formatTime(schedule.start_time)} – {formatTime(schedule.end_time)}
+                    </span>
+                  </div>
+                  <div className="schedule-item__row">
+                    <span className="schedule-item__price">
+                      ₱{Number(schedule.ticket_price).toFixed(2)}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="schedule-item__reserve"
+                    onClick={() => {
+                      onClose();
+                      navigate(ionRouter, `/booking/seats?schedule=${schedule.id}`);
+                    }}
+                  >
+                    Reserve Seats
+                  </button>
+                </div>
+              ))}
+            </div>
+          </>
         ) : (
           <div className="movie-details">
-            <div className="movie-details__top">
-              <div className="movie-card__poster">
+            {/* Hero: the poster again, blurred, behind the title block. */}
+            <div className="movie-details__hero">
+              {posterSrc && !posterFailed && (
+                <img className="movie-details__backdrop" src={posterSrc} alt="" aria-hidden="true" />
+              )}
+              <button
+                type="button"
+                className="movies-schedule-modal__close movie-details__close"
+                onClick={onClose}
+                aria-label="Close details"
+              >
+                <IonIcon icon={closeOutline} />
+              </button>
+              <div className="movie-card__poster movie-details__poster">
                 {posterSrc && !posterFailed ? (
                   <img
                     src={posterSrc}
@@ -158,65 +185,72 @@ const MovieDetailsSheet: React.FC<{ movie: MovieDetails; onClose: () => void }> 
                   </div>
                 )}
               </div>
-              <dl className="movie-details__facts">
-                {[
-                  ["Genres", movie.genres.join(" • ")],
-                  [branches.length > 1 ? "Branches" : "Branch", branches.join(", ")],
-                  ["Rating", movie.age_rating],
-                  ["Runtime", movie.duration_minutes ? formatRuntime(movie.duration_minutes) : null],
-                  ["Release", movie.release_date ? formatDate(movie.release_date.slice(0, 10)) : null],
-                  ["Language", movie.language],
-                ]
-                  .filter(([, value]) => value)
-                  .map(([label, value]) => (
-                    <div className="movie-details__fact" key={label}>
-                      <dt>{label}</dt>
-                      <dd>{value}</dd>
-                    </div>
-                  ))}
-              </dl>
+              <div className="movie-details__headline">
+                <h2 className="movie-details__title">{movie.title}</h2>
+                {meta && <p className="movie-details__meta">{meta}</p>}
+                {movie.genres.length > 0 && (
+                  <ul className="movie-details__genres" aria-label="Genres">
+                    {movie.genres.map((genre) => (
+                      <li key={genre}>{genre}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
 
-            <p className="movie-details__synopsis">
-              {movie.description || "No synopsis available yet."}
-            </p>
+            <div className="movie-details__body">
+              {branches.length > 0 && (
+                <p className="movie-details__branch">
+                  <IonIcon icon={locationOutline} aria-hidden="true" />
+                  <span>{branches.join(", ")}</span>
+                </p>
+              )}
 
-            {trailerId ? (
-              <button
-                type="button"
-                className="movie-details__trailer"
-                onClick={() => setTrailerOpen(true)}
-              >
-                Watch Trailer
-              </button>
-            ) : movie.trailer_url && /^https?:\/\//i.test(movie.trailer_url) && (
-              <a
-                className="movie-details__trailer"
-                href={movie.trailer_url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Watch Trailer
-              </a>
-            )}
+              <p className="movie-details__synopsis">
+                {movie.description || "No synopsis available yet."}
+              </p>
 
-            <button
-              type="button"
-              className="schedule-item__reserve"
-              onClick={() => {
-                if (movie.branch) {
-                  onClose();
-                  navigate(ionRouter, `/booking/room?branch=${movie.branch.id}&movie=${movie.id}`);
-                } else {
-                  setShowtimes(true);
-                }
-              }}
-            >
-              {/* Mini cinemas rent either the whole room or single seats. */}
-              {movie.branch
-                ? movie.branch.booking_mode === "seat" ? "Book Seats" : "Book a Room"
-                : "View Showtimes"}
-            </button>
+              <div className="movie-details__actions">
+                {trailerId ? (
+                  <button
+                    type="button"
+                    className="movie-details__trailer"
+                    onClick={() => setTrailerOpen(true)}
+                  >
+                    <IonIcon icon={playCircleOutline} aria-hidden="true" />
+                    Trailer
+                  </button>
+                ) : movie.trailer_url && /^https?:\/\//i.test(movie.trailer_url) && (
+                  <a
+                    className="movie-details__trailer"
+                    href={movie.trailer_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <IonIcon icon={playCircleOutline} aria-hidden="true" />
+                    Trailer
+                  </a>
+                )}
+
+                <button
+                  type="button"
+                  className="schedule-item__reserve movie-details__book"
+                  onClick={() => {
+                    if (movie.branch) {
+                      onClose();
+                      navigate(ionRouter, `/booking/room?branch=${movie.branch.id}&movie=${movie.id}`);
+                    } else {
+                      setShowtimes(true);
+                    }
+                  }}
+                >
+                  {/* Mini cinemas rent either the whole room or single seats. */}
+                  {movie.branch
+                    ? movie.branch.booking_mode === "seat" ? "Book Seats" : "Book a Room"
+                    : "View Showtimes"}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
