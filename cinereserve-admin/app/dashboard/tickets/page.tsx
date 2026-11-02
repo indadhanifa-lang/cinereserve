@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, Eye, Loader2, RefreshCw, Search, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AlertCircle, Eye, Loader2, QrCode, RefreshCw, ScanLine, Search, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/dashboard/empty-state";
@@ -20,6 +20,9 @@ type Ticket = {
   reservation: {
     id: number;
     reservation_code: string;
+    booking_type: "seat" | "room";
+    /** Party size of a whole-room booking; null for seat bookings. */
+    guests: number | null;
     status: string;
     total_amount: string;
   } | null;
@@ -98,6 +101,89 @@ const localTodayString = (): string => {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 };
 
+/** Chromium's built-in QR reader; not in TypeScript's DOM lib yet. */
+declare class BarcodeDetector {
+  constructor(options: { formats: string[] });
+  detect(source: HTMLVideoElement): Promise<{ rawValue: string }[]>;
+}
+
+/** Back camera preview that reports the first QR code it reads, then stops. */
+function QrScanner({ onCode, onClose }: { onCode: (code: string) => void; onClose: () => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let stream: MediaStream | undefined;
+    let timer: number | undefined;
+    let stopped = false;
+    const detector = new BarcodeDetector({ formats: ["qr_code"] });
+
+    navigator.mediaDevices
+      .getUserMedia({ video: { facingMode: "environment" } })
+      .then(async (media) => {
+        stream = media;
+        const video = videoRef.current;
+        if (stopped || !video) return;
+        video.srcObject = media;
+        await video.play();
+        const scan = async () => {
+          if (stopped) return;
+          const [found] = await detector.detect(video).catch(() => []);
+          if (found?.rawValue) {
+            stopped = true;
+            onCode(found.rawValue);
+          } else {
+            timer = window.setTimeout(scan, 250);
+          }
+        };
+        scan();
+      })
+      .catch(() => setError("Camera not available. Allow camera access, or type the code instead."));
+
+    return () => {
+      stopped = true;
+      window.clearTimeout(timer);
+      stream?.getTracks().forEach((track) => track.stop());
+    };
+  }, [onCode]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="qr-scanner-title"
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-2xl border border-primary/30 bg-card p-6 shadow-xl"
+      >
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h2 id="qr-scanner-title" className="text-base font-semibold text-foreground">
+              Scan ticket QR
+            </h2>
+            <span className="text-xs text-muted-foreground">Point the camera at the QR on the customer&apos;s ticket.</span>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        {error ? (
+          <p role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {error}
+          </p>
+        ) : (
+          <video ref={videoRef} muted playsInline className="aspect-square w-full rounded-xl bg-black object-cover" />
+        )}
+      </div>
+    </div>
+  );
+}
+
 const DetailRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <div className="flex items-start justify-between gap-3 py-1.5">
     <span className="shrink-0 text-xs text-muted-foreground">{label}</span>
@@ -112,6 +198,47 @@ export default function TicketsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("");
   const [dateFilter, setDateFilter] = useState<DateFilter>("");
   const [selected, setSelected] = useState<Ticket | null>(null);
+  const [code, setCode] = useState("");
+  const [checkingIn, setCheckingIn] = useState(false);
+  const [scanning, setScanning] = useState(false);
+
+  /** Checks a ticket in by code; the API's answer (ticket or reason) updates the list. */
+  const checkIn = useCallback(async (ticketCode: string) => {
+    setCheckingIn(true);
+    try {
+      const res = await fetch("/api/admin/tickets/check-in", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: ticketCode }),
+      });
+      const data = await res.json().catch(() => ({}));
+      const ticket: Ticket | undefined = data.ticket;
+      if (ticket) {
+        setTickets((rows) => rows?.map((row) => (row.id === ticket.id ? ticket : row)) ?? rows);
+        setSelected((current) => (current?.id === ticket.id ? ticket : current));
+      }
+      if (!res.ok) throw new Error(data.message ?? "Unable to check in. Try again.");
+      setCode("");
+      toast.success(`Checked in ${ticket?.customer?.name ?? ticket?.ticket_code} · ${ticket?.movie?.title ?? ""}`);
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setCheckingIn(false);
+    }
+  }, []);
+
+  const onScanned = useCallback(
+    (scanned: string) => {
+      setScanning(false);
+      checkIn(scanned);
+    },
+    [checkIn]
+  );
+
+  const startScan = () => {
+    if ("BarcodeDetector" in window && navigator.mediaDevices) setScanning(true);
+    else toast.error("This browser can't read QR codes (Chrome on Android or Mac can). Type the ticket code instead.");
+  };
 
   const loadTickets = () => {
     fetch("/api/admin/tickets")
@@ -173,6 +300,17 @@ export default function TicketsPage() {
 
   const seatLabels = (ticket: Ticket): string =>
     ticket.seats.map((seat) => seat.label).join(", ");
+
+  const peopleLabel = (guests: number | null | undefined): string | null =>
+    guests == null ? null : `${guests} ${guests === 1 ? "person" : "people"}`;
+
+  const isRoomBooking = (ticket: Ticket): boolean => ticket.reservation?.booking_type === "room";
+
+  /** "Whole room · 3 people" for room bookings, else the seat labels. */
+  const bookingSummary = (ticket: Ticket): string =>
+    isRoomBooking(ticket)
+      ? ["Whole room", peopleLabel(ticket.reservation?.guests)].filter(Boolean).join(" · ")
+      : seatLabels(ticket) || "—";
 
   const modal = selected ? (
     <div
@@ -264,7 +402,7 @@ export default function TicketsPage() {
             </p>
             <DetailRow label="Movie" value={selected.movie?.title ?? "—"} />
             <DetailRow label="Branch" value={selected.branch?.name ?? "—"} />
-            <DetailRow label="Screen" value={selected.screen?.name ?? "—"} />
+            <DetailRow label="Room" value={selected.screen?.name ?? "—"} />
             <DetailRow
               label="Show Date"
               value={selected.schedule ? formatDate(selected.schedule.show_date) : "—"}
@@ -281,9 +419,14 @@ export default function TicketsPage() {
 
           <section className="py-2">
             <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-primary">
-              Seats
+              {isRoomBooking(selected) ? "Booking" : "Seats"}
             </p>
-            {selected.seats.length > 0 ? (
+            {isRoomBooking(selected) ? (
+              <>
+                <DetailRow label="Type" value="Whole room" />
+                <DetailRow label="People" value={peopleLabel(selected.reservation?.guests) ?? "—"} />
+              </>
+            ) : selected.seats.length > 0 ? (
               <div className="flex flex-wrap gap-2 py-1">
                 {selected.seats.map((seat) => (
                   <span
@@ -300,9 +443,21 @@ export default function TicketsPage() {
           </section>
         </div>
 
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex justify-end gap-2">
+          {selected.status === "valid" && (
+            <Button
+              type="button"
+              disabled={checkingIn}
+              onClick={() => checkIn(selected.ticket_code)}
+              className="h-9 rounded-full px-4 text-sm"
+            >
+              {checkingIn && <Loader2 className="animate-spin" />}
+              Check in
+            </Button>
+          )}
           <Button
             type="button"
+            variant="outline"
             onClick={() => setSelected(null)}
             className="h-9 rounded-full px-4 text-sm"
           >
@@ -345,6 +500,36 @@ export default function TicketsPage() {
   return (
     <div className="flex flex-col gap-4">
       {modal}
+      {scanning && <QrScanner onCode={onScanned} onClose={() => setScanning(false)} />}
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (code.trim()) checkIn(code.trim());
+        }}
+        className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/30 bg-card p-3"
+      >
+        <div className="flex items-center gap-2 pl-1 text-sm font-semibold text-foreground">
+          <QrCode className="h-4 w-4 text-primary" />
+          Entrance check-in
+        </div>
+        <Input
+          type="text"
+          placeholder="Ticket code, e.g. TKT-20261103-KKIR8O"
+          className="h-10 min-w-56 flex-1 font-mono uppercase placeholder:normal-case placeholder:font-sans"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          aria-label="Ticket code to check in"
+        />
+        <Button type="submit" disabled={checkingIn || !code.trim()} className="h-10 rounded-full px-4">
+          {checkingIn && <Loader2 className="animate-spin" />}
+          Check in
+        </Button>
+        <Button type="button" variant="outline" onClick={startScan} className="h-10 rounded-full px-4">
+          <ScanLine />
+          Scan QR
+        </Button>
+      </form>
 
       <div className="flex flex-wrap items-end gap-3">
         <div className="relative min-w-56 flex-1">
@@ -409,7 +594,7 @@ export default function TicketsPage() {
                 <th className="px-4 py-3 font-medium">Customer</th>
                 <th className="px-4 py-3 font-medium">Movie</th>
                 <th className="px-4 py-3 font-medium">Showtime</th>
-                <th className="px-4 py-3 font-medium">Seats</th>
+                <th className="px-4 py-3 font-medium">Booking</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Checked In</th>
                 <th className="px-4 py-3 font-medium">
@@ -439,8 +624,9 @@ export default function TicketsPage() {
                       ? `${formatDate(ticket.schedule.show_date)} • ${formatTime(ticket.schedule.start_time)}`
                       : "—"}
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {ticket.seats.length > 0 ? seatLabels(ticket) : "—"}
+                  <td className="px-4 py-3">
+                    <span className="block text-foreground">{ticket.screen?.name ?? "—"}</span>
+                    <span className="block text-xs text-muted-foreground">{bookingSummary(ticket)}</span>
                   </td>
                   <td className="px-4 py-3">
                     <span

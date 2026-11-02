@@ -23,7 +23,7 @@ class AdminReservationController extends Controller
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
-        $branchId = $user->branch_id;
+        $branchId = $user->current_branch_id;
         if (! $branchId) {
             return response()->json([
                 'message' => 'No branch is assigned to your account.',
@@ -36,7 +36,7 @@ class AdminReservationController extends Controller
         $reservations = Reservation::query()
             ->whereHas('schedule', fn ($query) => $query->where('branch_id', $branchId))
             ->with([
-                'user:id,name,email',
+                'customer:id,name,email',
                 'schedule:id,movie_id,branch_id,screen_id,show_date,start_time,end_time',
                 'schedule.movie:id,title',
                 'schedule.branch:id,name',
@@ -62,16 +62,18 @@ class AdminReservationController extends Controller
         return [
             'id' => $reservation->id,
             'reservation_code' => $reservation->reservation_code,
+            'booking_type' => $reservation->booking_type,
+            'guests' => $reservation->guests,
             'subtotal' => $reservation->subtotal,
             'discount_amount' => $reservation->discount_amount,
             'total_amount' => $reservation->total_amount,
             'status' => $reservation->status,
             'reserved_at' => $reservation->reserved_at,
             'expires_at' => $reservation->expires_at,
-            'customer' => $reservation->user ? [
-                'id' => $reservation->user->id,
-                'name' => $reservation->user->name,
-                'email' => $reservation->user->email,
+            'customer' => $reservation->customer ? [
+                'id' => $reservation->customer->id,
+                'name' => $reservation->customer->name,
+                'email' => $reservation->customer->email,
             ] : null,
             'movie' => $schedule?->movie ? [
                 'id' => $schedule->movie->id,

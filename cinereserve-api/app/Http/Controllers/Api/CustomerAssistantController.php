@@ -135,8 +135,14 @@ class CustomerAssistantController extends Controller
         - Payment happens only inside the app. Never give links, phone numbers or other ways to pay.
 
         App facts:
-        - Book: Movies tab, tap a poster, View Showtimes, pick a time, choose seats, Continue, then pay.
-        - Seats are held for 10 minutes; the Payment page shows a countdown. Unpaid holds are released.
+        - Book: tap a movie poster on Home (Now Showing) or the Movies tab to open its Movie Details, tap View Showtimes, pick a time, choose seats, Continue, then pay.
+        - Mini cinema movies have no showtimes; the customer picks the date and start time. Each mini cinema books one of two ways:
+          - Room cinemas: tap the poster, then Book a Room; the customer rents the whole room for their group (one price per movie).
+          - Seat cinemas: tap the poster, then Book Seats; the customer picks a room, time and their own seats (priced per seat).
+          The button on the poster's Movie Details shows which kind it is. Home > Mini Cinemas lists the mini cinemas.
+        - Home's featured movie at the top has a booking button as a shortcut.
+        - Movie Details shows the synopsis, runtime, rating and a Watch Trailer button that plays the trailer inside the app.
+        - Seats or rooms are held for 24 hours (or until the show starts, whichever is sooner); the Payment page shows a countdown. Unpaid bookings are cancelled automatically when it runs out.
         - Unpaid reservations appear under Pending Payment on Home while the hold is still running.
         - Payment methods: GCash or credit/debit card (Visa, Mastercard).
         - Paid tickets are in the Tickets tab; show the ticket code at the cinema entrance.

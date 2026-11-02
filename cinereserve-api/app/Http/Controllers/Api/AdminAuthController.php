@@ -6,28 +6,131 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class AdminAuthController extends Controller
 {
-    private const PROFILE_FIELDS = ['id', 'name', 'email', 'phone', 'avatar_url', 'role', 'branch_id', 'status'];
+    private const PROFILE_FIELDS = ['id', 'name', 'email', 'phone', 'avatar_url', 'role', 'current_branch_id', 'status'];
 
-    private const BRANCH_FIELDS = ['id', 'name', 'address', 'city', 'province', 'phone', 'email', 'logo_url', 'status'];
+    /** Roles that sign in to the partner portal. */
+    private const PORTAL_ROLES = ['admin', 'platform_admin'];
 
     /**
-     * Shared user payload for every endpoint here, with the admin's branch
-     * embedded so the portal chrome can render it without a second request.
+     * Shared user payload for every endpoint here, with the current
+     * establishment (and its setup checklist) and the owner's other
+     * establishments embedded so the portal chrome renders in one request.
      */
     private function profilePayload(User $user): array
     {
         $branch = $user->branch;
 
         return $user->only(self::PROFILE_FIELDS) + [
-            'branch' => $branch?->only(self::BRANCH_FIELDS),
-            'organization' => $branch?->organization?->only(['id', 'name']),
+            'branch' => $branch ? BranchController::payload($branch) : null,
+            'branches' => BranchController::memberBranches($user),
+
         ];
+    }
+
+    /**
+     * Self-serve signup for a business owner: the account plus a draft
+     * branch under the given branch name, which the owner then completes
+     * from Business Profile. The account is named after the branch. The role
+     * is fixed server-side, so no one can sign up as a platform administrator.
+     */
+    public function register(Request $request)
+    {
+        $request->merge(['email' => strtolower(trim((string) $request->input('email')))]);
+
+        $data = $request->validate([
+            'branch_name' => ['required', 'string', 'max:150'],
+            'email' => ['required', 'email', 'max:150', 'unique:users,email'],
+            'phone' => ['required', 'string', 'max:30'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user = DB::transaction(function () use ($data) {
+            $user = new User([
+                'name' => $data['branch_name'],
+                'email' => $data['email'],
+                'phone' => $data['phone'],
+                'password' => $data['password'],
+            ]);
+            $user->role = 'admin';
+            $user->status = 'active';
+            $user->save();
+
+            BranchController::createDraft($user, [
+                'name' => $data['branch_name'],
+                'phone' => $data['phone'],
+                'email' => $data['email'],
+            ]);
+
+            return $user;
+        });
+
+        $token = $user->createToken('admin-portal')->plainTextToken;
+
+        return response()->json([
+            'token' => $token,
+            'user' => $this->profilePayload($user),
+        ], 201);
+    }
+
+    /**
+     * Always answers the same way, whether or not the email belongs to a
+     * portal account, so the form can't be used to discover accounts.
+     */
+    public function forgotPassword(Request $request)
+    {
+        $data = $request->validate([
+            'email' => ['required', 'email'],
+        ]);
+
+        Password::sendResetLink([
+            'email' => strtolower(trim($data['email'])),
+            'role' => self::PORTAL_ROLES,
+        ]);
+
+        return response()->json([
+            'message' => 'If that email has a partner account, a reset link is on its way.',
+        ]);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $data = $request->validate([
+            'token' => ['required', 'string'],
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $status = Password::reset(
+            [
+                'email' => strtolower(trim($data['email'])),
+                'role' => self::PORTAL_ROLES,
+                'token' => $data['token'],
+                'password' => $data['password'],
+            ],
+            function (User $user, string $password) {
+                $user->password = $password;
+                $user->save();
+                // Every existing session ends with the old password.
+                $user->tokens()->delete();
+            },
+        );
+
+        if ($status !== Password::PASSWORD_RESET) {
+            return response()->json([
+                'message' => 'This reset link is invalid or has expired.',
+                'errors' => ['email' => ['This reset link is invalid or has expired.']],
+            ], 422);
+        }
+
+        return response()->json(['message' => 'Your password has been reset. You can sign in now.']);
     }
 
     public function login(Request $request)
@@ -48,7 +151,7 @@ class AdminAuthController extends Controller
             $user->password ?? Hash::make('not-a-real-password'),
         );
 
-        if (! $user || ! $passwordMatches || $user->role !== 'admin') {
+        if (! $user || ! $passwordMatches || ! in_array($user->role, self::PORTAL_ROLES, true)) {
             return response()->json([
                 'message' => 'Invalid email or password.',
             ], 401);
@@ -113,7 +216,7 @@ class AdminAuthController extends Controller
     {
         $user = $request->user();
 
-        if ($user->role !== 'admin') {
+        if (! in_array($user->role, self::PORTAL_ROLES, true)) {
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 

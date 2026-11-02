@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { IonButton, IonCheckbox, IonContent, IonIcon, IonInput, IonPage, useIonRouter } from '@ionic/react';
 import {
+  arrowBackOutline,
   arrowForwardOutline,
   eyeOffOutline,
   eyeOutline,
@@ -95,6 +96,15 @@ const Login: React.FC = () => {
       <IonContent fullscreen scrollY className="auth-content">
         <div className="auth-page">
           <div className="auth-glow" aria-hidden="true" />
+
+          <button
+            type="button"
+            className="auth-back"
+            aria-label="Back to welcome page"
+            onClick={() => ionRouter.push('/welcome', 'back')}
+          >
+            <IonIcon icon={arrowBackOutline} />
+          </button>
 
           <div className="login-header">
             <div className="brand-icon-wrap">

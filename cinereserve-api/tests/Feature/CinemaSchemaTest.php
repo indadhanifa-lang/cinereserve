@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
+use App\Models\Customer;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -28,12 +28,12 @@ class CinemaSchemaTest extends TestCase
         $this->insert('payments', ['reservation_id' => $booking['reservation_id'], 'payment_method' => 'mock', 'amount' => 250]);
         $this->insert('payments', ['reservation_id' => $booking['reservation_id'], 'payment_method' => 'mock', 'amount' => 250]);
         $this->insert('tickets', ['reservation_id' => $booking['reservation_id'], 'ticket_code' => 'TICKET-1', 'qr_token' => 'unique-token']);
-        $this->insert('reviews', ['user_id' => $booking['user_id'], 'movie_id' => $booking['movie_id'], 'rating' => 1]);
-        $this->insert('reviews', ['user_id' => $booking['user_id'], 'movie_id' => $booking['movie_id'], 'rating' => 5]);
-        $this->insert('notifications', ['user_id' => $booking['user_id'], 'title' => 'Booking received', 'message' => 'Your seats are reserved.']);
-        $this->insert('movie_interactions', ['user_id' => $booking['user_id'], 'movie_id' => $booking['movie_id'], 'interaction_type' => 'reserved']);
+        $this->insert('reviews', ['customer_id' => $booking['customer_id'], 'movie_id' => $booking['movie_id'], 'rating' => 1]);
+        $this->insert('reviews', ['customer_id' => $booking['customer_id'], 'movie_id' => $booking['movie_id'], 'rating' => 5]);
+        $this->insert('notifications', ['customer_id' => $booking['customer_id'], 'title' => 'Booking received', 'message' => 'Your seats are reserved.']);
+        $this->insert('movie_interactions', ['customer_id' => $booking['customer_id'], 'movie_id' => $booking['movie_id'], 'interaction_type' => 'reserved']);
         DB::table('ai_demand_predictions')->insert(['branch_id' => $booking['branch_id'], 'prediction_date' => '2026-09-22', 'predicted_bookings' => 10.5, 'created_at' => '2026-09-21 12:00:00']);
-        DB::table('ai_recommendation_logs')->insert(['user_id' => $booking['user_id'], 'movie_id' => $booking['movie_id'], 'score' => 0.98765, 'created_at' => '2026-09-21 12:00:00']);
+        DB::table('ai_recommendation_logs')->insert(['customer_id' => $booking['customer_id'], 'movie_id' => $booking['movie_id'], 'score' => 0.98765, 'created_at' => '2026-09-21 12:00:00']);
 
         $this->assertDatabaseHas('seats', ['id' => $booking['seat_id'], 'seat_type' => 'regular', 'price_modifier' => 0]);
         $this->assertDatabaseHas('reservations', ['id' => $booking['reservation_id'], 'status' => 'pending', 'discount_amount' => 0]);
@@ -53,9 +53,9 @@ class CinemaSchemaTest extends TestCase
 
         $this->assertFalse(Schema::hasTable('seats'));
         $this->assertFalse(Schema::hasTable('ai_recommendation_logs'));
-        $this->assertFalse(Schema::hasTable('users'));
+        $this->assertFalse(Schema::hasTable('customers'));
         $this->artisan('migrate', ['--force' => true])->assertSuccessful();
-        $this->assertModelExists(User::factory()->create());
+        $this->assertModelExists(Customer::factory()->create());
     }
 
     #[DataProvider('invalidRatings')]
@@ -65,7 +65,7 @@ class CinemaSchemaTest extends TestCase
         $booking = $this->createBooking();
 
         $this->expectException(QueryException::class);
-        $this->insert('reviews', ['user_id' => $booking['user_id'], 'movie_id' => $booking['movie_id'], 'rating' => $rating]);
+        $this->insert('reviews', ['customer_id' => $booking['customer_id'], 'movie_id' => $booking['movie_id'], 'rating' => $rating]);
     }
 
     public static function invalidRatings(): array
@@ -89,7 +89,7 @@ class CinemaSchemaTest extends TestCase
             'seat in screen' => ['seats', ['screen_id' => 1, 'row_label' => 'A', 'seat_number' => 1]],
             'showtime in screen' => ['schedules', ['movie_id' => 1, 'branch_id' => 1, 'screen_id' => 1, 'show_date' => '2026-09-22', 'start_time' => '18:00:00', 'end_time' => '20:00:00', 'ticket_price' => 250]],
             'seat in reservation' => ['reservation_seats', ['reservation_id' => 1, 'seat_id' => 1, 'price' => 250]],
-            'booking code' => ['reservations', ['user_id' => 1, 'schedule_id' => 1, 'reservation_code' => 'BOOKING-1', 'subtotal' => 250, 'total_amount' => 250, 'reserved_at' => '2026-09-21 12:00:00']],
+            'booking code' => ['reservations', ['customer_id' => 1, 'schedule_id' => 1, 'reservation_code' => 'BOOKING-1', 'subtotal' => 250, 'total_amount' => 250, 'reserved_at' => '2026-09-21 12:00:00']],
         ];
     }
 
@@ -106,7 +106,7 @@ class CinemaSchemaTest extends TestCase
         $this->artisan('migrate', ['--force' => true])->assertSuccessful();
 
         $this->expectException(QueryException::class);
-        DB::table('organizations')->insert(['name' => 'Missing timestamps', 'slug' => 'missing']);
+        DB::table('genres')->insert(['name' => 'Missing timestamps']);
     }
 
     private function insert(string $table, array $attributes): int
@@ -117,16 +117,15 @@ class CinemaSchemaTest extends TestCase
     /** @return array<string, int> */
     private function createBooking(): array
     {
-        $organizationId = $this->insert('organizations', ['name' => 'Cinema', 'slug' => 'cinema']);
-        $branchId = $this->insert('branches', ['organization_id' => $organizationId, 'name' => 'Central', 'slug' => 'central', 'address' => 'Main Street', 'city' => 'Cagayan de Oro']);
+        $branchId = $this->insert('branches', ['name' => 'Central', 'slug' => 'central', 'address' => 'Main Street', 'city' => 'Cagayan de Oro']);
         $screenId = $this->insert('screens', ['branch_id' => $branchId, 'name' => 'Screen 1', 'capacity' => 100]);
         $seatId = $this->insert('seats', ['screen_id' => $screenId, 'row_label' => 'A', 'seat_number' => 1]);
         $movieId = $this->insert('movies', ['title' => 'Test Movie', 'slug' => 'test-movie', 'duration_minutes' => 120]);
         $scheduleId = $this->insert('schedules', ['movie_id' => $movieId, 'branch_id' => $branchId, 'screen_id' => $screenId, 'show_date' => '2026-09-22', 'start_time' => '18:00:00', 'end_time' => '20:00:00', 'ticket_price' => 250]);
-        $user = User::factory()->create();
-        $reservationId = $this->insert('reservations', ['user_id' => $user->id, 'schedule_id' => $scheduleId, 'reservation_code' => 'BOOKING-1', 'subtotal' => 250, 'total_amount' => 250, 'reserved_at' => '2026-09-21 12:00:00']);
+        $customer = Customer::factory()->create();
+        $reservationId = $this->insert('reservations', ['customer_id' => $customer->id, 'schedule_id' => $scheduleId, 'reservation_code' => 'BOOKING-1', 'subtotal' => 250, 'total_amount' => 250, 'reserved_at' => '2026-09-21 12:00:00']);
         $this->insert('reservation_seats', ['reservation_id' => $reservationId, 'seat_id' => $seatId, 'price' => 250]);
 
-        return ['branch_id' => $branchId, 'screen_id' => $screenId, 'seat_id' => $seatId, 'movie_id' => $movieId, 'schedule_id' => $scheduleId, 'user_id' => $user->id, 'reservation_id' => $reservationId];
+        return ['branch_id' => $branchId, 'screen_id' => $screenId, 'seat_id' => $seatId, 'movie_id' => $movieId, 'schedule_id' => $scheduleId, 'customer_id' => $customer->id, 'reservation_id' => $reservationId];
     }
 }

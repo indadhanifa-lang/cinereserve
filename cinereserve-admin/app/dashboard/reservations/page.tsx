@@ -27,6 +27,9 @@ type PaymentInfo = {
 type Reservation = {
   id: number;
   reservation_code: string;
+  booking_type: "seat" | "room";
+  /** Party size of a whole-room booking; null for seat bookings. */
+  guests: number | null;
   subtotal: string;
   discount_amount: string;
   total_amount: string;
@@ -117,6 +120,15 @@ const localTodayString = (): string => {
 
 const seatLabels = (seats: ReservedSeat[]): string =>
   seats.map((seat) => seat.label ?? "—").join(", ");
+
+const peopleLabel = (guests: number | null): string | null =>
+  guests === null ? null : `${guests} ${guests === 1 ? "person" : "people"}`;
+
+/** "Whole room · 3 people" for room bookings, else the seat labels. */
+const bookingSummary = (reservation: Reservation): string =>
+  reservation.booking_type === "room"
+    ? ["Whole room", peopleLabel(reservation.guests)].filter(Boolean).join(" · ")
+    : seatLabels(reservation.seats) || "—";
 
 const DetailRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <div className="flex items-start justify-between gap-3 py-1.5">
@@ -261,7 +273,7 @@ export default function ReservationsPage() {
             </p>
             <DetailRow label="Movie" value={selected.movie?.title ?? "—"} />
             <DetailRow label="Branch" value={selected.branch?.name ?? "—"} />
-            <DetailRow label="Screen" value={selected.screen?.name ?? "—"} />
+            <DetailRow label="Room" value={selected.screen?.name ?? "—"} />
             <DetailRow
               label="Show Date"
               value={selected.schedule ? formatDate(selected.schedule.show_date) : "—"}
@@ -278,9 +290,14 @@ export default function ReservationsPage() {
 
           <section className="py-2">
             <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-primary">
-              Reserved Seats
+              {selected.booking_type === "room" ? "Booking" : "Reserved Seats"}
             </p>
-            {selected.seats.length > 0 ? (
+            {selected.booking_type === "room" ? (
+              <>
+                <DetailRow label="Type" value="Whole room" />
+                <DetailRow label="People" value={peopleLabel(selected.guests) ?? "—"} />
+              </>
+            ) : selected.seats.length > 0 ? (
               <div className="flex flex-wrap gap-1.5 pt-0.5">
                 {selected.seats.map((seat) => (
                   <span
@@ -434,7 +451,7 @@ export default function ReservationsPage() {
                 <th className="px-4 py-3 font-medium">Customer</th>
                 <th className="px-4 py-3 font-medium">Movie</th>
                 <th className="px-4 py-3 font-medium">Schedule</th>
-                <th className="px-4 py-3 font-medium">Seats</th>
+                <th className="px-4 py-3 font-medium">Booking</th>
                 <th className="px-4 py-3 font-medium">Total</th>
                 <th className="px-4 py-3 font-medium">Payment</th>
                 <th className="px-4 py-3 font-medium">Status</th>
@@ -465,8 +482,9 @@ export default function ReservationsPage() {
                       ? `${formatDate(reservation.schedule.show_date)} • ${formatTime(reservation.schedule.start_time)}`
                       : "—"}
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {seatLabels(reservation.seats) || "—"}
+                  <td className="px-4 py-3">
+                    <span className="block text-foreground">{reservation.screen?.name ?? "—"}</span>
+                    <span className="block text-xs text-muted-foreground">{bookingSummary(reservation)}</span>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {formatPrice(reservation.total_amount)}

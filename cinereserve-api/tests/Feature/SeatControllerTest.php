@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
-use App\Models\Organization;
 use App\Models\Screen;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -21,7 +20,7 @@ class SeatControllerTest extends TestCase
 
     public function test_index_returns_a_404_when_the_admin_has_no_branch(): void
     {
-        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'branch_id' => null]);
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'current_branch_id' => null]);
 
         $this->actingAs($admin, 'sanctum')->getJson('/api/screens/1/seats')->assertNotFound();
     }
@@ -264,7 +263,7 @@ class SeatControllerTest extends TestCase
 
     public function test_update_returns_a_404_when_the_admin_has_no_branch(): void
     {
-        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'branch_id' => null]);
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'current_branch_id' => null]);
 
         $this->actingAs($admin, 'sanctum')->patchJson('/api/seats/1', [
             'seat_type' => 'vip',
@@ -377,7 +376,7 @@ class SeatControllerTest extends TestCase
         return User::factory()->create([
             'role' => 'admin',
             'status' => 'active',
-            'branch_id' => $branch->id,
+            'current_branch_id' => $branch->id,
         ]);
     }
 
@@ -386,18 +385,14 @@ class SeatControllerTest extends TestCase
      */
     private function twoBranches(): array
     {
-        $organization = Organization::create(['name' => 'Cinema Co', 'slug' => 'cinema-co']);
-
         return [
             Branch::create([
-                'organization_id' => $organization->id,
                 'name' => 'Central',
                 'slug' => 'central',
                 'address' => 'Main Street',
                 'city' => 'Cagayan de Oro',
             ]),
             Branch::create([
-                'organization_id' => $organization->id,
                 'name' => 'Uptown',
                 'slug' => 'uptown',
                 'address' => 'Uptown Avenue',

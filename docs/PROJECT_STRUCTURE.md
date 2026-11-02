@@ -21,16 +21,20 @@ CinemaReserveAI/
 │   │   │   ├── Controllers/
 │   │   │   │   └── Controller.php
 │   │   │   └── Controllers/Api/
-│   │   │       ├── AdminAuthController.php    # Login, logout, me, profile, avatar
-│   │   │       ├── BranchController.php       # Branch update, logo upload
+│   │   │       ├── AdminAuthController.php    # Owner signup, login, logout, password reset, profile
+│   │   │       ├── BranchController.php       # Owner establishments: create, select, profile, logo, photos, setup
+│   │   │       ├── CustomerBranchController.php # Public listing/detail of active establishments
+│   │   │       ├── PlatformBranchController.php # Platform admin: list businesses, suspend/reinstate
 │   │   │       ├── GenreController.php        # Genre listing and creation
 │   │   │       └── MovieController.php        # Movie CRUD with poster upload
+│   │   ├── Http/Middleware/EnsureRole.php     # role:admin / role:platform_admin route gate
+│   │   ├── Http/Controllers/Concerns/ManagesPhotos.php # Photo gallery upload/remove
 │   │   ├── Models/
-│   │   │   ├── Branch.php
+│   │   │   ├── Branch.php                      # draft/active/suspended, setupChecklist(), syncStatus()
+│   │   │   ├── Customer.php                    # Customer-app accounts (separate from users)
 │   │   │   ├── Genre.php
 │   │   │   ├── Movie.php
-│   │   │   ├── Organization.php
-│   │   │   └── User.php
+│   │   │   └── User.php                        # Owners, staff, platform admins; branches() via branch_user
 │   │   └── Providers/
 │   │       └── AppServiceProvider.php
 │   │
@@ -120,9 +124,14 @@ CinemaReserveAI/
 │   ├── phpunit.xml
 │   └── vite.config.js
 │
-├── cinereserve-admin/                           # Next.js 16 admin portal
+├── cinereserve-admin/                           # Next.js 16 business partner portal
 │   ├── app/
-│   │   ├── page.tsx                             # Login page
+│   │   ├── page.tsx                             # Public landing page (Book a Cinema / Partner With Us)
+│   │   ├── login/page.tsx                       # Owner / platform admin sign in
+│   │   ├── register/page.tsx                    # Business owner signup
+│   │   ├── forgot-password/page.tsx             # Request reset link
+│   │   ├── reset-password/page.tsx              # Set new password from emailed link
+│   │   ├── platform/page.tsx                    # Platform admin: suspend/reinstate businesses
 │   │   ├── layout.tsx                           # Root layout (dark mode, Poppins)
 │   │   ├── globals.css                          # Tailwind + shadcn theme
 │   │   │
@@ -140,7 +149,8 @@ CinemaReserveAI/
 │   │   │       └── avatar/route.ts              # POST
 │   │   │
 │   │   └── dashboard/
-│   │       ├── page.tsx                         # Dashboard overview (KPI cards)
+│   │       ├── page.tsx                         # Overview (KPIs, totals, recent transactions)
+│   │       ├── business/page.tsx                # Business Profile + onboarding checklist
 │   │       ├── layout.tsx                       # Dashboard shell (sidebar, header)
 │   │       ├── movies/
 │   │       │   ├── page.tsx                     # Movie catalog
@@ -170,6 +180,7 @@ CinemaReserveAI/
 │   │       └── empty-state.tsx
 │   │
 │   ├── lib/
+│   │   ├── api-proxy.ts                         # forward(): cookie → Bearer proxy to Laravel
 │   │   ├── dashboard-nav.ts                     # Nav config, module metadata
 │   │   └── utils.ts                             # cn() utility
 │   │
@@ -199,6 +210,10 @@ CinemaReserveAI/
 │   │   │   ├── Home.css
 │   │   │   ├── Login.tsx                        # Login form
 │   │   │   ├── Register.tsx                     # Registration + password strength
+│   │   │   ├── Cinemas.tsx                      # /cinemas — active establishments
+│   │   │   ├── CinemaDetail.tsx                 # /cinema?id= — profile, rooms, showtimes
+│   │   │   ├── RoomBooking.tsx                  # /booking/room?schedule= — whole-room rental
+
 │   │   │   └── AuthForm.css
 │   │   │
 │   │   ├── components/                          # (empty)

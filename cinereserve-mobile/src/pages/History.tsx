@@ -13,7 +13,6 @@ import {
   closeOutline,
   filmOutline,
   homeOutline,
-  notificationsOutline,
   personCircleOutline,
   personOutline,
   receiptOutline,
@@ -21,6 +20,7 @@ import {
 } from 'ionicons/icons';
 import { apiGetAuth, resolveStorageUrl } from '../lib/api';
 import { navigate } from '../lib/nav';
+import NotificationBell from '../components/NotificationBell';
 import './History.css';
 
 type HistorySeat = { label: string };
@@ -30,6 +30,7 @@ type HistoryPayment = { method: string; status: string; amount: string };
 type HistoryItem = {
   id: number;
   reservation_code: string;
+  booking_type?: 'seat' | 'room';
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'expired';
   subtotal: string;
   discount_amount: string;
@@ -228,7 +229,9 @@ const History: React.FC = () => {
               )}
             </>
           )}
-          {item.seats.length > 0 && (
+          {item.booking_type === 'room' ? (
+            <p className="history-card__seats">Whole room: {item.screen.name ?? 'Room'}</p>
+          ) : item.seats.length > 0 && (
             <p className="history-card__seats">Seats: {item.seats.map((seat) => seat.label).join(', ')}</p>
           )}
           <p className="history-card__total">{formatPrice(item.total_amount)}</p>
@@ -297,9 +300,7 @@ const History: React.FC = () => {
             <img src="/logo.png" alt="CineReserve AI" className="history-header__logo" />
           </div>
           <div className="history-header__actions">
-            <button type="button" className="icon-button" aria-label="Notifications">
-              <IonIcon icon={notificationsOutline} />
-            </button>
+            <NotificationBell />
             <div className="history-header__avatar" aria-hidden="true">
               {headerAvatarUrl && headerAvatarUrl !== failedHeaderAvatarUrl ? (
                 <img
@@ -437,9 +438,10 @@ const History: React.FC = () => {
                     </div>
                   ) : (
                     <div className="history-modal__row">
-                      <span>Seats</span>
-                      <strong>—</strong>
+                      <span>{selected.booking_type === 'room' ? 'Whole room' : 'Seats'}</span>
+                      <strong>{selected.booking_type === 'room' ? (selected.screen.name ?? 'Room') : '—'}</strong>
                     </div>
+
                   )}
                 </div>
 

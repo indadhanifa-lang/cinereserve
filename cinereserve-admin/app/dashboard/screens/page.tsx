@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AlertCircle, Loader2, Pencil, SquarePlus, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { AlertCircle, ImagePlus, Loader2, Pencil, SquarePlus, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/dashboard/empty-state";
@@ -15,12 +15,42 @@ type Screen = {
   name: string;
   screen_type: string | null;
   capacity: number;
+  rental_price: string | null;
+  extra_guest_fee: string | null;
+  photos: string[] | null;
   status: string;
 };
 
-type FormErrors = Partial<Record<"name" | "screen_type" | "capacity" | "status", string>>;
+const FIELDS = [
+  "name",
+  "screen_type",
+  "capacity",
+  "rental_price",
+  "extra_guest_fee",
+  "status",
+] as const;
 
-const EMPTY_FORM = { name: "", screen_type: "", capacity: "", status: "active" };
+type FormErrors = Partial<Record<(typeof FIELDS)[number], string>>;
+
+const EMPTY_FORM = {
+  name: "",
+  screen_type: "",
+  capacity: "",
+  rental_price: "",
+  extra_guest_fee: "",
+  status: "active",
+};
+
+/** Full-row body for create, edit and the status toggle. */
+const screenBody = (screen: Pick<Screen, (typeof FIELDS)[number]>) =>
+  JSON.stringify({
+    name: screen.name,
+    screen_type: screen.screen_type,
+    capacity: screen.capacity,
+    rental_price: screen.rental_price,
+    extra_guest_fee: screen.extra_guest_fee,
+    status: screen.status,
+  });
 
 export default function ScreensPage() {
   const [screens, setScreens] = useState<Screen[] | null>(null);
@@ -32,6 +62,9 @@ export default function ScreensPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [seatMode, setSeatMode] = useState(false);
+  const photoInput = useRef<HTMLInputElement>(null);
 
   const loadScreens = (silent = false) => {
     fetch("/api/admin/screens")
@@ -54,6 +87,16 @@ export default function ScreensPage() {
 
   useEffect(() => loadScreens(), []);
 
+  useEffect(() => {
+    fetch("/api/admin/me")
+      .then((res) => res.json())
+      .then((data) => setSeatMode(data.user?.branch?.booking_mode === "seat"))
+      .catch(() => {});
+  }, []);
+
+  // By room: one price per booking (the whole room for one movie). By seat: the base price per seat.
+  const priceLabel = seatMode ? "Price per Seat" : "Price per Booking";
+
   const openModal = () => {
     setEditing(null);
     setForm(EMPTY_FORM);
@@ -68,6 +111,8 @@ export default function ScreensPage() {
       name: screen.name,
       screen_type: screen.screen_type ?? "",
       capacity: String(screen.capacity),
+      rental_price: screen.rental_price ?? "",
+      extra_guest_fee: screen.extra_guest_fee ?? "",
       status: screen.status,
     });
     setErrors({});
@@ -96,6 +141,7 @@ export default function ScreensPage() {
     else if (!Number.isInteger(capacity) || capacity < 1) {
       clientErrors.capacity = "Capacity must be a whole number of at least 1.";
     }
+    const hasFee = form.extra_guest_fee.trim() !== "";
 
     if (Object.keys(clientErrors).length > 0) {
       setErrors(clientErrors);
@@ -114,10 +160,12 @@ export default function ScreensPage() {
       const res = await fetch(endpoint, {
         method: isEdit ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: screenBody({
           name,
           screen_type: form.screen_type.trim() || null,
           capacity,
+          rental_price: form.rental_price.trim() === "" ? null : form.rental_price,
+          extra_guest_fee: hasFee ? form.extra_guest_fee : null,
           status: form.status,
         }),
       });
@@ -125,7 +173,7 @@ export default function ScreensPage() {
 
       if (res.status === 422) {
         const fieldErrors: FormErrors = {};
-        for (const key of ["name", "screen_type", "capacity", "status"] as const) {
+        for (const key of FIELDS) {
           if (data.errors?.[key]?.[0]) fieldErrors[key] = data.errors[key][0];
         }
         setErrors(fieldErrors);
@@ -149,10 +197,10 @@ export default function ScreensPage() {
 
       if (isEdit) {
         loadScreens(true);
-        toast.success(`Screen "${screenName}" updated.`);
+        toast.success(`Room "${screenName}" updated.`);
       } else {
         setScreens((prev) => [...(prev ?? []), data.screen]);
-        toast.success(`Screen "${screenName}" created.`);
+        toast.success(`Room "${screenName}" created.`);
       }
     } catch {
       setFormError("Unable to reach the server. Try again.");
@@ -175,16 +223,11 @@ export default function ScreensPage() {
       const res = await fetch(`/api/admin/screens/${screen.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: screen.name,
-          screen_type: screen.screen_type,
-          capacity: screen.capacity,
-          status: next,
-        }),
+        body: screenBody({ ...screen, status: next }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message);
-      toast.success(`Screen "${screen.name}" is now ${next}.`);
+      toast.success(`Room "${screen.name}" is now ${next}.`);
     } catch (err) {
       setStatus(screen.status);
       toast.error(err instanceof Error && err.message ? err.message : "Could not update status.");
@@ -194,6 +237,40 @@ export default function ScreensPage() {
   };
 
   const activeCount = (screens ?? []).filter((screen) => screen.status === "active").length;
+
+  const updateScreen = (screen: Screen) => {
+    setEditing(screen);
+    setScreens((prev) => prev?.map((s) => (s.id === screen.id ? screen : s)) ?? prev);
+  };
+
+  const uploadPhoto = async (file: File) => {
+    if (!editing) return;
+    setUploadingPhoto(true);
+    try {
+      const body = new FormData();
+      body.append("photo", file);
+      const res = await fetch(`/api/admin/screens/${editing.id}/photos`, { method: "POST", body });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) updateScreen(data.screen);
+      else toast.error(data.errors?.photo?.[0] ?? data.message ?? "Upload failed. Try again.");
+    } catch {
+      toast.error("Unable to reach the server. Try again.");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const removePhoto = async (url: string) => {
+    if (!editing) return;
+    const res = await fetch(`/api/admin/screens/${editing.id}/photos`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    }).catch(() => null);
+    const data = await res?.json().catch(() => ({}));
+    if (res?.ok) updateScreen(data.screen);
+    else toast.error(data?.message ?? "Could not remove the photo.");
+  };
 
   const fieldError = (key: keyof FormErrors) =>
     errors[key] ? (
@@ -213,11 +290,11 @@ export default function ScreensPage() {
         aria-modal="true"
         aria-labelledby="new-screen-title"
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-2xl border border-border/30 bg-card p-6 shadow-xl"
+        className="admin-modal-scroll max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-border/30 bg-card p-6 shadow-xl"
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 id="new-screen-title" className="text-base font-semibold text-foreground">
-            {editing ? "Edit Screen" : "Add Screen"}
+            {editing ? "Edit Room" : "Add Room"}
           </h2>
           <button
             type="button"
@@ -242,12 +319,12 @@ export default function ScreensPage() {
 
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="screen-name">Screen Name</Label>
+            <Label htmlFor="screen-name">Room Name</Label>
             <Input
               id="screen-name"
               autoFocus
               className="h-11"
-              placeholder="Screen 1"
+              placeholder="Room 1"
               maxLength={100}
               value={form.name}
               onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
@@ -258,11 +335,11 @@ export default function ScreensPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="screen-type">Screen Type</Label>
+            <Label htmlFor="screen-type">Room Type</Label>
             <Input
               id="screen-type"
               className="h-11"
-              placeholder="2D"
+              placeholder="Standard, VIP, Barkada…"
               maxLength={50}
               value={form.screen_type}
               onChange={(e) => setForm((prev) => ({ ...prev, screen_type: e.target.value }))}
@@ -286,8 +363,95 @@ export default function ScreensPage() {
               aria-invalid={Boolean(errors.capacity)}
               disabled={saving}
             />
+            {seatMode ? null : (
+              <p className="text-xs text-muted-foreground">The room price covers this many people.</p>
+            )}
             {fieldError("capacity")}
           </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="screen-rental-price">{priceLabel} (₱)</Label>
+            <Input
+              id="screen-rental-price"
+              type="number"
+              min={0}
+              step="0.01"
+              className="h-11"
+              placeholder="Required before customers can book"
+              value={form.rental_price}
+              onChange={(e) => setForm((prev) => ({ ...prev, rental_price: e.target.value }))}
+              aria-invalid={Boolean(errors.rental_price)}
+              disabled={saving}
+            />
+            {fieldError("rental_price")}
+          </div>
+
+          {/* By room only: by seat, every person already pays for a seat. */}
+          {!seatMode && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="screen-extra-guest-fee">Additional Person (₱)</Label>
+              <Input
+                id="screen-extra-guest-fee"
+                type="number"
+                min={0}
+                step="0.01"
+                className="h-11"
+                placeholder="Optional, e.g. 75.00"
+                value={form.extra_guest_fee}
+                onChange={(e) => setForm((prev) => ({ ...prev, extra_guest_fee: e.target.value }))}
+                aria-invalid={Boolean(errors.extra_guest_fee)}
+                disabled={saving}
+              />
+              <p className="text-xs text-muted-foreground">
+                Each person past the capacity pays this. Leave blank to keep bookings within the capacity.
+              </p>
+              {fieldError("extra_guest_fee")}
+            </div>
+          )}
+
+          {editing && (
+            <div className="flex flex-col gap-1.5">
+              <Label>Room Photos</Label>
+              <div className="grid grid-cols-4 gap-2">
+                {(editing.photos ?? []).map((url) => (
+                  <div key={url} className="relative aspect-square overflow-hidden rounded-lg bg-muted">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt="" className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => void removePhoto(url)}
+                      aria-label="Remove photo"
+                      className="absolute top-1 right-1 rounded-full bg-black/60 p-1 text-white"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                {(editing.photos?.length ?? 0) < 10 && (
+                  <button
+                    type="button"
+                    onClick={() => photoInput.current?.click()}
+                    disabled={uploadingPhoto}
+                    aria-label="Add room photo"
+                    className="flex aspect-square items-center justify-center rounded-lg border border-dashed border-input text-muted-foreground hover:text-foreground"
+                  >
+                    {uploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                  </button>
+                )}
+              </div>
+              <input
+                ref={photoInput}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) void uploadPhoto(file);
+                }}
+              />
+            </div>
+          )}
 
           <div className="mt-1 flex items-center justify-end gap-2">
             <button
@@ -305,7 +469,7 @@ export default function ScreensPage() {
                   Saving…
                 </>
               ) : (
-                "Save Screen"
+                "Save Room"
               )}
             </Button>
           </div>
@@ -328,7 +492,7 @@ export default function ScreensPage() {
       <>
         <div className="flex min-h-[50vh] items-center justify-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          <span>Loading screens…</span>
+          <span>Loading rooms…</span>
         </div>
         {modal}
       </>
@@ -354,7 +518,7 @@ export default function ScreensPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
           <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-          {activeCount} Active Screen{activeCount === 1 ? "" : "s"}
+          {activeCount} Active Room{activeCount === 1 ? "" : "s"}
         </span>
         <button
           type="button"
@@ -362,7 +526,7 @@ export default function ScreensPage() {
           className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
         >
           <SquarePlus className="h-4 w-4" />
-          Add Screen
+          Add Room
         </button>
       </div>
 
@@ -370,9 +534,10 @@ export default function ScreensPage() {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border/30 text-xs text-muted-foreground uppercase">
             <tr>
-              <th className="px-4 py-3 font-medium">Screen</th>
+              <th className="px-4 py-3 font-medium">Room</th>
               <th className="px-4 py-3 font-medium">Type</th>
               <th className="px-4 py-3 font-medium">Capacity</th>
+              <th className="px-4 py-3 font-medium">{priceLabel}</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">
                 <span className="sr-only">Actions</span>
@@ -384,7 +549,15 @@ export default function ScreensPage() {
               <tr key={screen.id} className="hover:bg-accent/40">
                 <td className="px-4 py-3 font-semibold text-foreground">{screen.name}</td>
                 <td className="px-4 py-3 text-muted-foreground">{screen.screen_type || "—"}</td>
-                <td className="px-4 py-3 text-muted-foreground">{screen.capacity} seats</td>
+                <td className="px-4 py-3 text-muted-foreground">{screen.capacity} people</td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {screen.rental_price ? `₱${Number(screen.rental_price).toLocaleString()}` : "—"}
+                  {!seatMode && screen.extra_guest_fee !== null && (
+                    <span className="block text-xs">
+                      Additional Person: ₱{Number(screen.extra_guest_fee).toLocaleString()}
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-3">
                   <StatusSwitch
                     status={screen.status}
@@ -398,7 +571,8 @@ export default function ScreensPage() {
                     type="button"
                     onClick={() => openEdit(screen)}
                     aria-label={`Edit ${screen.name}`}
-                    title="Edit screen"
+                    title="Edit room"
+
                     className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                   >
                     <Pencil className="h-4 w-4" />

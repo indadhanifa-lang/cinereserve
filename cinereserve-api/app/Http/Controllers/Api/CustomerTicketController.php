@@ -39,9 +39,9 @@ class CustomerTicketController extends Controller
 
         /** @var Collection<int, Ticket> $tickets */
         $tickets = Ticket::query()
-            ->whereIn('reservation_id', Reservation::where('user_id', $user->id)->select('id'))
+            ->whereIn('reservation_id', Reservation::where('customer_id', $user->id)->select('id'))
             ->with([
-                'reservation:id,user_id,schedule_id,reservation_code,status,total_amount',
+                'reservation:id,customer_id,schedule_id,booking_type,reservation_code,status,total_amount',
                 'reservation.schedule:id,movie_id,branch_id,screen_id,show_date,start_time,end_time',
                 'reservation.schedule.movie:id,title,poster_url',
                 'reservation.schedule.screen:id,name',
@@ -138,6 +138,7 @@ class CustomerTicketController extends Controller
             'reservation' => $reservation ? [
                 'id' => $reservation->id,
                 'reservation_code' => $reservation->reservation_code,
+                'booking_type' => $reservation->booking_type,
                 'status' => $reservation->status,
                 'total_amount' => $reservation->total_amount,
             ] : null,

@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'row_label',
     'seat_number',
     'seat_type',
+    'capacity',
     'price_modifier',
     'status',
 ])]

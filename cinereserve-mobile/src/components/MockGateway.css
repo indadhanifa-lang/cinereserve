@@ -1,0 +1,370 @@
+/* Mock hosted checkout — opens over the Payment page. */
+.gw {
+  --gw-primary: #7c3aed;
+  --gw-accent: #d2bbff;
+  --gw-on-primary: #ede0ff;
+  --gw-surface: #1f1f23;
+  --gw-field: #131317;
+  --gw-border: rgba(255, 255, 255, 0.08);
+  --gw-text: #e4e1e7;
+  --gw-muted: #958da1;
+  --gw-muted-strong: #ccc3d8;
+  --gw-error: #ffb4ab;
+
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.gw__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 6, 14, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.gw__sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 460px;
+  max-height: 92dvh;
+  overflow-y: auto;
+  padding: 18px 20px calc(18px + env(safe-area-inset-bottom));
+  border-radius: 24px 24px 0 0;
+  border: 1px solid var(--gw-border);
+  border-bottom: none;
+  background: var(--gw-surface);
+  color: var(--gw-text);
+  box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.5);
+  animation: gw-sheet-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  scrollbar-width: none;
+}
+
+.gw__sheet::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Header ── */
+.gw__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gw__lock,
+.gw__icon-btn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 18px;
+}
+
+.gw__lock {
+  background: rgba(124, 58, 237, 0.18);
+  color: var(--gw-accent);
+}
+
+.gw__icon-btn {
+  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--gw-muted-strong);
+  cursor: pointer;
+}
+
+.gw__icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.gw__brand {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.gw__brand strong {
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.gw__brand span {
+  font-size: 11px;
+  color: var(--gw-muted);
+}
+
+/* ── Amount ── */
+.gw__amount {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--gw-field);
+  border: 1px solid var(--gw-border);
+}
+
+.gw__amount span,
+.gw__amount small {
+  font-size: 11px;
+  color: var(--gw-muted);
+}
+
+.gw__amount strong {
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 28px;
+  line-height: 34px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.gw__banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(147, 0, 10, 0.25);
+  color: var(--gw-error);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.gw__banner ion-icon {
+  flex-shrink: 0;
+  font-size: 18px;
+}
+
+/* ── Form ── */
+.gw__form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.gw__lead {
+  margin: 0;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--gw-muted-strong);
+}
+
+.gw__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.gw__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.gw__field > span {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--gw-muted-strong);
+}
+
+.gw__input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px solid var(--gw-border);
+  background: var(--gw-field);
+  color: var(--gw-muted);
+  font-size: 18px;
+  transition: border-color 150ms ease-out;
+}
+
+.gw__input:focus-within {
+  border-color: var(--gw-accent);
+}
+
+.gw__input--error {
+  border-color: var(--gw-error);
+}
+
+.gw__input input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--gw-text);
+  font-family: inherit;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.gw__input input::placeholder {
+  color: var(--gw-muted);
+  opacity: 0.6;
+}
+
+.gw__input--otp input {
+  text-align: center;
+  font-size: 22px;
+  letter-spacing: 0.5em;
+}
+
+.gw__brand-tag {
+  flex-shrink: 0;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--gw-accent);
+}
+
+.gw__error {
+  font-size: 12px;
+  color: var(--gw-error);
+}
+
+.gw__pay {
+  height: 52px;
+  margin-top: 4px;
+  border: none;
+  border-radius: 999px;
+  background: var(--gw-primary);
+  color: var(--gw-on-primary);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.35);
+  transition: transform 120ms ease-out, opacity 150ms ease-out;
+}
+
+.gw__pay:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.gw__pay:disabled {
+  opacity: 0.45;
+  cursor: default;
+  box-shadow: none;
+}
+
+.gw__pay:focus-visible,
+.gw__icon-btn:focus-visible,
+.gw__hint button:focus-visible {
+  outline: 2px solid var(--gw-accent);
+  outline-offset: 2px;
+}
+
+/* ── Test hints ── */
+.gw__hint {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px dashed rgba(210, 187, 255, 0.22);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--gw-muted);
+}
+
+.gw__hint strong {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gw-accent);
+}
+
+.gw__hint button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--gw-text);
+  font-family: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.gw__hint em {
+  margin-left: 6px;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--gw-muted);
+}
+
+/* ── Processing ── */
+.gw__processing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 0 20px;
+  text-align: center;
+  color: var(--gw-accent);
+}
+
+.gw__processing ion-spinner {
+  width: 36px;
+  height: 36px;
+}
+
+.gw__processing strong {
+  margin-top: 6px;
+  font-size: 15px;
+  color: var(--gw-text);
+}
+
+.gw__processing span {
+  font-size: 12px;
+  color: var(--gw-muted);
+}
+
+.gw__foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 11px;
+  line-height: 15px;
+  text-align: center;
+  color: var(--gw-muted);
+}
+
+@keyframes gw-sheet-in {
+  from {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gw__sheet {
+    animation: none;
+  }
+}

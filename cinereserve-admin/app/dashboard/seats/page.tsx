@@ -21,6 +21,7 @@ type Seat = {
   row_label: string;
   seat_number: number;
   seat_type: string;
+  capacity: number;
   price_modifier: number | string;
   status: string;
 };
@@ -30,7 +31,9 @@ type FormErrors = Partial<Record<"rows" | "seatsPerRow" | "seatType" | "priceMod
 const MAX_ROWS = 26;
 const MAX_SEATS_PER_ROW = 50;
 
-const EMPTY_FORM = { rows: "5", seatsPerRow: "8", seatType: "regular", priceModifier: "0" };
+const EMPTY_FORM = { rows: "5", seatsPerRow: "8", seatType: "regular", benchCapacity: "3", priceModifier: "0" };
+
+const MAX_BENCH_CAPACITY = 20;
 
 const seatClasses = (seat: Pick<Seat, "seat_type" | "status">) => {
   if (seat.status !== "active") {
@@ -38,6 +41,9 @@ const seatClasses = (seat: Pick<Seat, "seat_type" | "status">) => {
   }
   if (seat.seat_type === "vip") {
     return "border-amber-400/40 bg-amber-400/10 text-amber-300";
+  }
+  if (seat.seat_type === "bench") {
+    return "border-sky-400/40 bg-sky-400/10 text-sky-300";
   }
   return "border-primary/40 bg-primary/10 text-foreground";
 };
@@ -56,7 +62,7 @@ export default function SeatsPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [editSeat, setEditSeat] = useState<Seat | null>(null);
-  const [editForm, setEditForm] = useState({ seatType: "regular", priceModifier: "0", status: "active" });
+  const [editForm, setEditForm] = useState({ seatType: "regular", capacity: "1", priceModifier: "0", status: "active" });
   const [editError, setEditError] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
 
@@ -110,7 +116,9 @@ export default function SeatsPage() {
     Number.isInteger(seatsPerRowCount) &&
     seatsPerRowCount >= 1 &&
     seatsPerRowCount <= MAX_SEATS_PER_ROW;
-  const previewTotal = hasPreviewNumbers ? rowsCount * seatsPerRowCount : 0;
+  // A bench seats several people, and each one counts against room capacity.
+  const benchCapacity = form.seatType === "bench" ? Number(form.benchCapacity) || 1 : 1;
+  const previewTotal = hasPreviewNumbers ? rowsCount * seatsPerRowCount * benchCapacity : 0;
   const exceedsCapacity =
     selectedScreen !== null && hasPreviewNumbers && previewTotal > selectedScreen.capacity;
 
@@ -147,6 +155,15 @@ export default function SeatsPage() {
       clientErrors.seatsPerRow = `Seats per row must be a whole number between 1 and ${MAX_SEATS_PER_ROW}.`;
     }
 
+    if (
+      form.seatType === "bench" &&
+      (!Number.isInteger(Number(form.benchCapacity)) ||
+        Number(form.benchCapacity) < 2 ||
+        Number(form.benchCapacity) > MAX_BENCH_CAPACITY)
+    ) {
+      clientErrors.seatType = `Bench capacity must be a whole number between 2 and ${MAX_BENCH_CAPACITY}.`;
+    }
+
     const priceModifier = Number(form.priceModifier);
     if (!form.priceModifier.trim()) clientErrors.priceModifier = "Price modifier is required.";
     else if (!Number.isFinite(priceModifier) || priceModifier < 0) {
@@ -166,6 +183,7 @@ export default function SeatsPage() {
           row_label: rowLabel(row),
           seat_number: number,
           seat_type: form.seatType,
+          capacity: benchCapacity,
           price_modifier: priceModifier,
         });
       }
@@ -206,7 +224,8 @@ export default function SeatsPage() {
   const openEditSeat = (seat: Seat) => {
     setEditSeat(seat);
     setEditForm({
-      seatType: seat.seat_type === "vip" ? "vip" : "regular",
+      seatType: ["vip", "bench"].includes(seat.seat_type) ? seat.seat_type : "regular",
+      capacity: String(seat.capacity ?? 1),
       priceModifier: String(Number(seat.price_modifier)),
       status: seat.status === "disabled" ? "disabled" : "active",
     });
@@ -232,6 +251,7 @@ export default function SeatsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           seat_type: editForm.seatType,
+          capacity: editForm.seatType === "bench" ? Number(editForm.capacity) : 1,
           price_modifier: priceModifier,
           status: editForm.status,
         }),
@@ -361,7 +381,21 @@ export default function SeatsPage() {
               >
                 <option value="regular">Regular</option>
                 <option value="vip">VIP</option>
+                <option value="bench">Bench</option>
               </select>
+              {form.seatType === "bench" && (
+                <Input
+                  aria-label="People per bench"
+                  type="number"
+                  min={2}
+                  max={MAX_BENCH_CAPACITY}
+                  className="h-11"
+                  placeholder="People per bench"
+                  value={form.benchCapacity}
+                  onChange={(e) => setForm((prev) => ({ ...prev, benchCapacity: e.target.value }))}
+                  disabled={saving}
+                />
+              )}
               {fieldError("seatType")}
             </div>
 
@@ -512,8 +546,25 @@ export default function SeatsPage() {
             >
               <option value="regular">Regular</option>
               <option value="vip">VIP</option>
+              <option value="bench">Bench</option>
             </select>
           </div>
+
+          {editForm.seatType === "bench" && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-seat-capacity">People per Bench</Label>
+              <Input
+                id="edit-seat-capacity"
+                type="number"
+                min={2}
+                max={MAX_BENCH_CAPACITY}
+                className="h-11"
+                value={editForm.capacity}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, capacity: e.target.value }))}
+                disabled={editSaving}
+              />
+            </div>
+          )}
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="edit-seat-price">Price Modifier</Label>
@@ -630,7 +681,7 @@ export default function SeatsPage() {
         {selectedScreen && seats && (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
             <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-            {seats.length} of {selectedScreen.capacity} seats
+            {seats.reduce((total, seat) => total + (seat.capacity ?? 1), 0)} of {selectedScreen.capacity} places
           </span>
         )}
       </div>
@@ -698,14 +749,16 @@ export default function SeatsPage() {
                       type="button"
                       onClick={() => openEditSeat(seat)}
                       aria-label={`Edit seat ${seat.row_label}${seat.seat_number}`}
-                      title={`${seat.row_label}${seat.seat_number} · ${seat.seat_type} · +${Number(seat.price_modifier)}`}
+                      title={`${seat.row_label}${seat.seat_number} · ${seat.seat_type}${seat.seat_type === "bench" ? ` (${seat.capacity} people)` : ""} · +${Number(seat.price_modifier)}`}
                       className={cn(
-                        "flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-md border text-[11px] font-semibold transition-opacity hover:opacity-75",
+                        "flex h-9 shrink-0 cursor-pointer items-center justify-center rounded-md border text-[11px] font-semibold transition-opacity hover:opacity-75",
+                        seat.seat_type === "bench" ? "w-20 gap-1" : "w-9",
                         seatClasses(seat)
                       )}
                     >
                       {seat.row_label}
                       {seat.seat_number}
+                      {seat.seat_type === "bench" && <span className="text-[9px] opacity-80">×{seat.capacity}</span>}
                     </button>
                   ))}
                 </div>
@@ -722,6 +775,11 @@ export default function SeatsPage() {
               <span className="h-3 w-3 rounded-sm border border-amber-400/40 bg-amber-400/10" />
               VIP
             </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-3 w-5 rounded-sm border border-sky-400/40 bg-sky-400/10" />
+              Bench
+            </span>
+
             <span className="flex items-center gap-1.5">
               <span className="h-3 w-3 rounded-sm border border-border/30 bg-muted/40" />
               Disabled

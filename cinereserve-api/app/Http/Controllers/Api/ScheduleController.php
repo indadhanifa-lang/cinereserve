@@ -96,6 +96,7 @@ class ScheduleController extends Controller
         } catch (QueryException) {
             return $this->duplicateError();
         }
+        $request->user()->branch->syncStatus();
 
         return $this->scheduleResponse($schedule, 201);
     }
@@ -159,6 +160,7 @@ class ScheduleController extends Controller
         } catch (QueryException) {
             return $this->duplicateError();
         }
+        $request->user()->branch->syncStatus();
 
         return $this->scheduleResponse($schedule->fresh());
     }
@@ -275,7 +277,7 @@ class ScheduleController extends Controller
      */
     private function ownBranchId(Request $request)
     {
-        $branchId = $request->user()->branch_id;
+        $branchId = $request->user()->current_branch_id;
 
         if (! $branchId) {
             return response()->json([

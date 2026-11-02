@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Reservation;
 use App\Models\Schedule;
 use App\Models\Seat;
 use Illuminate\Http\JsonResponse;
@@ -32,8 +33,8 @@ class CustomerScheduleSeatController extends Controller
         $schedule = Schedule::query()
             ->with([
                 'movie:id,title',
-                'branch:id,name',
-                'screen:id,name',
+                'branch:id,name,booking_mode,status',
+                'screen:id,name,capacity,rental_price,photos',
             ])
             ->find($scheduleId);
 
@@ -58,11 +59,17 @@ class CustomerScheduleSeatController extends Controller
             ], 409);
         }
 
+        if ($schedule->branch?->status !== 'active') {
+            return response()->json([
+                'message' => 'This cinema is not accepting bookings.',
+            ], 409);
+        }
+
         $seats = Seat::query()
             ->where('screen_id', $schedule->screen_id)
             ->orderBy('row_label')
             ->orderBy('seat_number')
-            ->get(['id', 'row_label', 'seat_number', 'seat_type', 'price_modifier', 'status']);
+            ->get(['id', 'row_label', 'seat_number', 'seat_type', 'capacity', 'price_modifier', 'status']);
 
         // Occupancy for THIS schedule only: a seat blocked by another
         // showtime stays bookable here. Blocking = confirmed, or pending
@@ -97,6 +104,7 @@ class CustomerScheduleSeatController extends Controller
                 'branch' => [
                     'id' => $schedule->branch?->id,
                     'name' => $schedule->branch?->name,
+                    'booking_mode' => $schedule->branch?->booking_mode,
                 ],
                 'screen' => [
                     'id' => $schedule->screen?->id,
@@ -107,6 +115,13 @@ class CustomerScheduleSeatController extends Controller
                 'end_time' => $schedule->end_time,
                 'ticket_price' => $schedule->ticket_price,
             ],
+            // By-Room establishments rent the whole screen: no seat map, just
+            // the room and whether anyone holds this showing already.
+            'room' => $schedule->branch?->booking_mode === 'room' ? [
+                'capacity' => $schedule->screen?->capacity,
+                'photos' => $schedule->screen?->photos ?? [],
+                'available' => ! Reservation::blockingSchedule($schedule->id)->exists(),
+            ] : null,
             'seats' => $seats
                 ->map(fn (Seat $seat) => [
                     'id' => $seat->id,
@@ -114,6 +129,7 @@ class CustomerScheduleSeatController extends Controller
                     'row_label' => $seat->row_label,
                     'seat_number' => $seat->seat_number,
                     'seat_type' => $seat->seat_type,
+                    'capacity' => $seat->capacity,
                     'price_modifier' => $seat->price_modifier,
                     'availability' => $this->availabilityFor($seat, $reservedSeatIds),
                 ])

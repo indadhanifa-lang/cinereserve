@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Customer;
 use App\Models\Movie;
 use App\Models\Payment;
 use App\Models\Reservation;
@@ -34,7 +35,7 @@ class AdminSearchController extends Controller
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
-        $branchId = $user->branch_id;
+        $branchId = $user->current_branch_id;
 
         if (! $branchId) {
             return response()->json([
@@ -94,7 +95,7 @@ class AdminSearchController extends Controller
         $branchName = $user->branch?->name;
 
         return Screen::query()
-            ->where('branch_id', $user->branch_id)
+            ->where('branch_id', $user->current_branch_id)
             ->where(function ($query) use ($like) {
                 $query->where('name', 'ILIKE', $like)
                     ->orWhere('screen_type', 'ILIKE', $like);
@@ -153,16 +154,16 @@ class AdminSearchController extends Controller
                     }))
                     ->orWhereHas('schedule.movie', fn ($movieQuery) => $movieQuery->where('title', 'ILIKE', $like));
             })
-            ->with(['user:id,name', 'schedule:id,movie_id,show_date,start_time', 'schedule.movie:id,title'])
+            ->with(['customer:id,name', 'schedule:id,movie_id,show_date,start_time', 'schedule.movie:id,title'])
             ->orderByDesc('reserved_at')
             ->orderByDesc('id')
             ->limit(self::RESULTS_PER_TYPE)
-            ->get(['id', 'reservation_code', 'user_id', 'schedule_id'])
+            ->get(['id', 'reservation_code', 'customer_id', 'schedule_id'])
             ->map(fn (Reservation $reservation) => [
                 'type' => 'reservation',
                 'id' => $reservation->id,
                 'title' => $reservation->reservation_code,
-                'subtitle' => ($reservation->user?->name ?? 'Unknown customer')
+                'subtitle' => ($reservation->customer?->name ?? 'Unknown customer')
                     .' • '.($reservation->schedule?->movie?->title ?? 'Unknown movie'),
                 'href' => '/dashboard/reservations',
             ])
@@ -172,8 +173,7 @@ class AdminSearchController extends Controller
     /** @return array<int, array<string, mixed>> */
     private function customers(string $like, int $branchId): array
     {
-        return User::query()
-            ->where('role', 'customer')
+        return Customer::query()
             ->whereHas('reservations', fn ($query) => $query->whereHas(
                 'schedule',
                 fn ($scheduleQuery) => $scheduleQuery->where('branch_id', $branchId)
@@ -187,7 +187,7 @@ class AdminSearchController extends Controller
             ->orderBy('id')
             ->limit(self::RESULTS_PER_TYPE)
             ->get(['id', 'name', 'email'])
-            ->map(fn (User $customer) => [
+            ->map(fn (Customer $customer) => [
                 'type' => 'customer',
                 'id' => $customer->id,
                 'title' => $customer->name,
@@ -208,7 +208,7 @@ class AdminSearchController extends Controller
                         ->where('reservation_code', 'ILIKE', $like)
                         ->orWhereHas('user', fn ($userQuery) => $userQuery->where('name', 'ILIKE', $like)));
             })
-            ->with(['reservation:id,reservation_code,user_id', 'reservation.user:id,name'])
+            ->with(['reservation:id,reservation_code,customer_id', 'reservation.customer:id,name'])
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->limit(self::RESULTS_PER_TYPE)
@@ -218,7 +218,7 @@ class AdminSearchController extends Controller
                 'id' => $payment->id,
                 'title' => $payment->payment_reference ?? 'Payment #'.$payment->id,
                 'subtitle' => ($payment->reservation?->reservation_code ?? 'No reservation')
-                    .' • '.($payment->reservation?->user?->name ?? 'Unknown customer'),
+                    .' • '.($payment->reservation?->customer?->name ?? 'Unknown customer'),
                 'href' => '/dashboard/payments',
             ])
             ->all();
@@ -235,7 +235,7 @@ class AdminSearchController extends Controller
                         ->where('reservation_code', 'ILIKE', $like)
                         ->orWhereHas('user', fn ($userQuery) => $userQuery->where('name', 'ILIKE', $like)));
             })
-            ->with(['reservation:id,reservation_code,user_id', 'reservation.user:id,name'])
+            ->with(['reservation:id,reservation_code,customer_id', 'reservation.customer:id,name'])
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->limit(self::RESULTS_PER_TYPE)
@@ -245,7 +245,7 @@ class AdminSearchController extends Controller
                 'id' => $ticket->id,
                 'title' => $ticket->ticket_code,
                 'subtitle' => ($ticket->reservation?->reservation_code ?? 'No reservation')
-                    .' • '.($ticket->reservation?->user?->name ?? 'Unknown customer'),
+                    .' • '.($ticket->reservation?->customer?->name ?? 'Unknown customer'),
                 'href' => '/dashboard/tickets',
             ])
             ->all();

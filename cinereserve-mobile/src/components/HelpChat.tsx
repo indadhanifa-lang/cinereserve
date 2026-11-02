@@ -41,11 +41,11 @@ const toTurns = (messages: Message[]) => {
 interface ChatState {
   conversation: Message[];
   typing: boolean;
-  // The greeting counts as unread until the chat is opened once.
-  unread: boolean;
+  // Bot replies that landed while the chat was closed.
+  unread: number;
 }
 
-const INITIAL_CHAT: ChatState = { conversation: [], typing: false, unread: true };
+const INITIAL_CHAT: ChatState = { conversation: [], typing: false, unread: 0 };
 let chat = INITIAL_CHAT;
 const listeners = new Set<() => void>();
 
@@ -80,11 +80,16 @@ const HelpChat: React.FC<{ customerName?: string | null }> = ({ customerName }) 
   const messages = [greeting(customerName), ...conversation];
   const [draft, setDraft] = useState("");
   const listRef = useRef<HTMLDivElement | null>(null);
+  // Read after the reply's await, when the `open` in ask's closure is stale.
+  const openRef = useRef(open);
+  openRef.current = open;
 
-  const toggle = () => {
-    setOpen((value) => !value);
-    setChat(() => ({ unread: false }));
-  };
+  // Seeing the chat reads everything in it.
+  useEffect(() => {
+    if (open) setChat(() => ({ unread: 0 }));
+  }, [open]);
+
+  const toggle = () => setOpen((value) => !value);
 
   // The AI (Gemini, via our backend) answers; if it is down or out of free
   // quota, the built-in FAQ answers instead so the chat never dead-ends.
@@ -108,7 +113,11 @@ const HelpChat: React.FC<{ customerName?: string | null }> = ({ customerName }) 
       reply = faq ? { from: "bot", text: faq.answer, action: faq.action } : { from: "bot", text: FALLBACK };
     }
 
-    setChat((state) => ({ conversation: [...state.conversation, reply], typing: false }));
+    setChat((state) => ({
+      conversation: [...state.conversation, reply],
+      typing: false,
+      unread: openRef.current ? 0 : state.unread + 1,
+    }));
   };
 
   const goTo = (path: string) => {
@@ -220,7 +229,7 @@ const HelpChat: React.FC<{ customerName?: string | null }> = ({ customerName }) 
         onClick={toggle}
       >
         <IonIcon icon={open ? closeOutline : chatbubbleEllipses} />
-        {unread && !open && <span className="help-chat-fab__badge">1</span>}
+        {unread > 0 && !open && <span className="help-chat-fab__badge">{unread}</span>}
       </button>
     </>
   );

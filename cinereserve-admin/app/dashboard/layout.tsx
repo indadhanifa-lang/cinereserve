@@ -11,6 +11,7 @@ import {
   Drama,
   LogOut,
   Menu,
+  Plus,
   X,
 } from "lucide-react";
 import { GlobalSearch } from "@/components/dashboard/global-search";
@@ -32,18 +33,20 @@ type Branch = {
   city: string | null;
   province: string | null;
   logo_url: string | null;
-  status: string;
+  booking_mode: "room" | "seat";
+  category: string;
+  status: "draft" | "active" | "suspended";
 };
-
-type Organization = { id: number; name: string };
 
 type AdminUser = {
   name: string;
   avatar_url: string | null;
   role: string;
   branch: Branch | null;
-  organization: Organization | null;
+  branches: { id: number; name: string; status: string }[];
 };
+
+const BUSINESS_HREF = HREF_BY_ID.business;
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/);
@@ -134,26 +137,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     const loadUser = () => {
       fetch("/api/admin/me")
-        .then((res) => res.json())
-        .then((data) =>
-          setUser(
-            data.user
-              ? {
-                  name: data.user.name,
-                  avatar_url: data.user.avatar_url,
-                  role: data.user.role,
-                  branch: data.user.branch ?? null,
-                  organization: data.user.organization ?? null,
-                }
-              : null
-          )
-        )
+        .then((res) => {
+          // Expired or revoked token: the cookie alone can't be trusted.
+          if (res.status === 401) router.replace("/login");
+          return res.json();
+        })
+        .then((data) => {
+          if (!data.user) return setUser(null);
+          if (data.user.role === "platform_admin") return router.replace("/platform");
+          setUser({
+            name: data.user.name,
+            avatar_url: data.user.avatar_url,
+            role: data.user.role,
+            branch: data.user.branch ?? null,
+            branches: data.user.branches ?? [],
+          });
+          // A new owner registers their first establishment before anything else.
+          if (!data.user.branch && window.location.pathname !== BUSINESS_HREF) {
+            router.replace(BUSINESS_HREF);
+          }
+        })
         .catch(() => {});
     };
     loadUser();
     window.addEventListener("admin-profile-updated", loadUser);
     return () => window.removeEventListener("admin-profile-updated", loadUser);
-  }, []);
+  }, [router]);
 
   // ── Admin notifications (branch-scoped, read-only polling) ─────────
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
@@ -225,15 +234,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [notifOpen]);
 
   const displayName = user?.name ?? "";
-  const displayRole = user?.role
-    ? user.role
-        .split(/[\s_-]+/)
-        .map((word) => word[0].toUpperCase() + word.slice(1))
-        .join(" ")
-    : "";
+  const displayRole = user ? "Business Owner" : "";
 
   const branch = user?.branch ?? null;
-  const branchCode = branch ? `#BR-${String(branch.id).padStart(4, "0")}` : "";
+  // Overview's button follows the booking model: mini cinemas have no schedules.
+  const action =
+    activeId === "dashboard" && branch
+      ? branch.category === "mini_cinema"
+        ? { label: "Manage Rooms", icon: Plus, href: HREF_BY_ID.screens }
+        : { label: "New Schedule", icon: Plus, href: HREF_BY_ID.schedules }
+      : meta.action;
+  const navGroups = NAV_GROUPS.map((group) => ({
+    ...group,
+    // By-Room establishments rent whole rooms and have no seat layouts.
+    items: group.items.filter(
+      (item) =>
+        !(item.id === "seats" && branch?.booking_mode === "room") &&
+        // Mini cinemas are booked on demand (any movie, any open time), so no schedules.
+        !(item.id === "schedules" && branch?.category === "mini_cinema")
+    ),
+  }));
 
   // Optimistic read of one notification — unreadCount is decremented
   // only when the item was actually unread and never goes below zero —
@@ -283,7 +303,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const handleLogout = async () => {
     await fetch("/api/admin/logout", { method: "POST" });
-    router.push("/");
+    router.push("/login");
   };
 
   return (
@@ -328,11 +348,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   AI
                 </span>
               </div>
-              {user?.organization && (
-                <span className="mt-0.5 truncate text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
-                  {user.organization.name}
-                </span>
-              )}
             </div>
           </div>
 
@@ -364,15 +379,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 >
                   {branch.name}
                 </span>
-                <span className="truncate text-[11px] text-muted-foreground">
-                  Branch ID {branchCode}
+                <span className="truncate text-[11px] text-muted-foreground capitalize">
+                  {branch.status} · {branch.booking_mode === "room" ? "By room" : "By seat"}
                 </span>
               </div>
             </div>
           )}
 
           <nav className="flex flex-col">
-            {NAV_GROUPS.map((group) => (
+            {navGroups.map((group) => (
               <div key={group.label}>
                 <div className="px-1 pt-2.5 pb-1">
                   <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
@@ -457,7 +472,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground"
           >
             <span className="hidden cursor-pointer transition-colors hover:text-foreground sm:inline">
-              Admin Portal
+              Partner Portal
             </span>
             <ChevronRight className="hidden h-3.5 w-3.5 text-border sm:block" />
             <span className="truncate font-semibold text-foreground">{meta.title}</span>
@@ -580,34 +595,60 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2 sm:border-l sm:border-border/30 sm:pl-3">
-            <Avatar name={displayName} avatarUrl={user?.avatar_url ?? null} className="h-8 w-8" />
-            <div className="hidden flex-col text-left leading-none lg:flex">
-              <span className="font-medium text-foreground">{displayName}</span>
-              <span className="mt-1 text-[11px] text-muted-foreground">{displayRole}</span>
-            </div>
-          </div>
         </div>
       </header>
 
+
       {/* Main */}
       <main className="min-h-screen w-full bg-background px-4 pt-16 sm:px-6 lg:pl-[calc(16rem+1.5rem)]">
-        <div className="flex w-full min-w-0 flex-col pt-6 pb-16">
-          <div className="mb-6">
-            <div className="mb-1 flex flex-wrap items-center gap-2">
-              <span className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-                {meta.title}
-              </span>
-              {branch && (
-                <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs text-primary">
-                  {branch.name}
+        {/* Keyed by path so each page fades in on navigation. */}
+        <div
+          key={pathname}
+          className="flex w-full min-w-0 flex-col pt-6 pb-16 duration-300 ease-out motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2"
+        >
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="mb-1 flex flex-wrap items-center gap-2">
+                <span className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+                  {meta.title}
                 </span>
-              )}
+                {branch && (
+                  <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                    {branch.name}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">{meta.subtitle}</p>
             </div>
-            <p className="text-sm text-muted-foreground">{meta.subtitle}</p>
+            {action && pathname === HREF_BY_ID[activeId] && (
+              <Link
+                href={action.href}
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                <action.icon className="h-4 w-4" />
+                {action.label}
+              </Link>
+            )}
           </div>
 
+          {branch?.status === "draft" && pathname !== BUSINESS_HREF && (
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
+              <span>
+                <strong className="font-semibold">Draft.</strong> Customers can&apos;t see this establishment until setup is complete.
+              </span>
+              <Link href={BUSINESS_HREF} className="font-semibold underline">
+                Finish setup
+              </Link>
+            </div>
+          )}
+          {branch?.status === "suspended" && (
+            <div className="mb-6 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              This establishment is suspended by the platform administrator and is not accepting new bookings.
+            </div>
+          )}
+
           <Suspense>{children}</Suspense>
+
         </div>
       </main>
     </div>

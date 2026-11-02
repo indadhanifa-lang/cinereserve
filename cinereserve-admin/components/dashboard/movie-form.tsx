@@ -11,6 +11,7 @@ import {
   Globe,
   Image as ImageIcon,
   Loader2,
+  PlayCircle,
   Plus,
   ShieldCheck,
   Tags,
@@ -30,6 +31,7 @@ type FormErrors = Partial<
     | "duration_minutes"
     | "release_date"
     | "language"
+    | "trailer_url"
     | "age_rating"
     | "status"
     | "genres"
@@ -48,6 +50,7 @@ export type EditableMovie = {
   duration_minutes: number;
   release_date: string | null;
   language: string | null;
+  trailer_url: string | null;
   age_rating: string | null;
   status: string;
   genres: string[];
@@ -59,13 +62,16 @@ export function MovieForm({ movie }: { movie?: EditableMovie }) {
   const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState(movie?.title ?? "");
   const [description, setDescription] = useState(movie?.description ?? "");
-  const [durationMinutes, setDurationMinutes] = useState(
-    movie ? String(movie.duration_minutes) : ""
-  );
+  const [hours, setHours] = useState(movie ? String(Math.floor(movie.duration_minutes / 60)) : "");
+  const [minutes, setMinutes] = useState(movie ? String(movie.duration_minutes % 60) : "");
+  const durationMinutes =
+    hours || minutes ? String(Number(hours || 0) * 60 + Number(minutes || 0)) : "";
   const [releaseDate, setReleaseDate] = useState(movie?.release_date ?? "");
   const [language, setLanguage] = useState(movie?.language ?? "");
+  const [trailerUrl, setTrailerUrl] = useState(movie?.trailer_url ?? "");
   const [ageRating, setAgeRating] = useState(movie?.age_rating ?? "");
-  const [status, setStatus] = useState(movie?.status ?? "active");
+  // New movies start active; the Movies list switch toggles it afterwards.
+  const status = movie?.status ?? "active";
   const [genres, setGenres] = useState<{ id: number; name: string }[]>([]);
   const [selectedGenres, setSelectedGenres] = useState<string[]>(movie?.genres ?? []);
   const [genreModalOpen, setGenreModalOpen] = useState(false);
@@ -163,6 +169,7 @@ export function MovieForm({ movie }: { movie?: EditableMovie }) {
       body.append("duration_minutes", durationMinutes);
       body.append("release_date", releaseDate);
       body.append("language", language);
+      body.append("trailer_url", trailerUrl);
       body.append("age_rating", ageRating);
       body.append("status", status);
       body.append("genres", selectedGenres.join(", "));
@@ -180,6 +187,7 @@ export function MovieForm({ movie }: { movie?: EditableMovie }) {
           "duration_minutes",
           "release_date",
           "language",
+          "trailer_url",
           "age_rating",
           "status",
           "genres",
@@ -278,28 +286,7 @@ export function MovieForm({ movie }: { movie?: EditableMovie }) {
             <div className="flex flex-col gap-4 rounded-2xl border border-border/30 bg-card p-5 shadow-md">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5 text-primary" />
-                <h2 className="text-base font-semibold text-foreground">Status & Rating</h2>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label>Catalog Status</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(["active", "inactive"] as const).map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setStatus(value)}
-                      className={cn(
-                        "h-10 rounded-lg text-sm font-semibold capitalize transition-all",
-                        status === value
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "bg-muted text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      {value}
-                    </button>
-                  ))}
-                </div>
+                <h2 className="text-base font-semibold text-foreground">Rating</h2>
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -390,16 +377,33 @@ export function MovieForm({ movie }: { movie?: EditableMovie }) {
 
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="movie-duration">Duration (mins)</Label>
-                  <Input
-                    id="movie-duration"
-                    type="number"
-                    min={1}
-                    className="h-11 font-semibold"
-                    value={durationMinutes}
-                    onChange={(e) => setDurationMinutes(e.target.value)}
-                    aria-invalid={Boolean(errors.duration_minutes)}
-                  />
+                  <Label htmlFor="movie-duration">Duration</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="movie-duration"
+                      type="number"
+                      min={0}
+                      placeholder="2"
+                      aria-label="Hours"
+                      className="h-11 font-semibold"
+                      value={hours}
+                      onChange={(e) => setHours(e.target.value)}
+                      aria-invalid={Boolean(errors.duration_minutes)}
+                    />
+                    <span className="text-sm text-muted-foreground">h</span>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={59}
+                      placeholder="25"
+                      aria-label="Minutes"
+                      className="h-11 font-semibold"
+                      value={minutes}
+                      onChange={(e) => setMinutes(e.target.value)}
+                      aria-invalid={Boolean(errors.duration_minutes)}
+                    />
+                    <span className="text-sm text-muted-foreground">m</span>
+                  </div>
                   {errors.duration_minutes && (
                     <p className="flex items-center gap-1.5 text-xs text-destructive" role="alert">
                       <AlertCircle className="h-3.5 w-3.5" />
@@ -446,6 +450,28 @@ export function MovieForm({ movie }: { movie?: EditableMovie }) {
                     </p>
                   )}
                 </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="movie-trailer">Trailer Link</Label>
+                <div className="relative flex items-center">
+                  <PlayCircle className="pointer-events-none absolute left-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="movie-trailer"
+                    type="url"
+                    placeholder="https://www.youtube.com/watch?v=… (optional)"
+                    className="h-11 pl-10"
+                    value={trailerUrl}
+                    onChange={(e) => setTrailerUrl(e.target.value)}
+                    aria-invalid={Boolean(errors.trailer_url)}
+                  />
+                </div>
+                {errors.trailer_url && (
+                  <p className="flex items-center gap-1.5 text-xs text-destructive" role="alert">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    {errors.trailer_url}
+                  </p>
+                )}
               </div>
             </div>
 

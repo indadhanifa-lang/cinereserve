@@ -28,6 +28,9 @@ class CustomerShowtimeController extends Controller
         $schedules = Schedule::query()
             ->where('status', 'active')
             ->whereHas('movie', fn ($query) => $query->where('status', 'active'))
+            // Mini cinema slots are private on-demand bookings, not public showtimes.
+            ->whereHas('branch', fn ($query) => $query->bookable()->where('category', '!=', 'mini_cinema'))
+
             ->where(function ($query) use ($today, $currentTime) {
                 $query->where('show_date', '>', $today)
                     ->orWhere(function ($query) use ($today, $currentTime) {
@@ -35,7 +38,7 @@ class CustomerShowtimeController extends Controller
                             ->where('start_time', '>=', $currentTime);
                     });
             })
-            ->with(['movie.genres:id,name', 'screen:id,name', 'branch:id,name'])
+            ->with(['movie.genres:id,name', 'screen:id,name', 'branch:id,name,booking_mode,category'])
             ->orderBy('show_date')
             ->orderBy('start_time')
             ->orderBy('id')
@@ -60,9 +63,38 @@ class CustomerShowtimeController extends Controller
                 'genres' => $movie->genres->pluck('name'),
             ]);
 
+        // Mini cinema catalogs: no showtimes, booked any time from the
+        // cinema's page, so each movie carries its cinema instead.
+        $cinemaMovies = Movie::query()
+            ->where('status', 'active')
+            ->where(fn ($query) => $query->whereNull('release_date')->orWhereDate('release_date', '<=', $today))
+            ->whereHas('branch', fn ($query) => $query->bookable()->where('category', 'mini_cinema'))
+            ->with(['genres:id,name', 'branch:id,name,booking_mode'])
+            ->latest('id')
+            ->get()
+            ->map(fn (Movie $movie) => [
+                'id' => $movie->id,
+                'title' => $movie->title,
+                'description' => $movie->description,
+                'poster_url' => $movie->poster_url,
+                'trailer_url' => $movie->trailer_url,
+                'duration_minutes' => $movie->duration_minutes,
+                'release_date' => $movie->release_date,
+                'language' => $movie->language,
+                'age_rating' => $movie->age_rating,
+                'genres' => $movie->genres->pluck('name'),
+                'upcoming_schedules' => [],
+                'branch' => [
+                    'id' => $movie->branch->id,
+                    'name' => $movie->branch->name,
+                    'booking_mode' => $movie->branch->booking_mode,
+                ],
+            ]);
+
         return response()->json([
             'movies' => $this->groupByMovie($schedules),
             'coming_soon' => $comingSoon,
+            'cinema_movies' => $cinemaMovies,
         ]);
     }
 
@@ -102,6 +134,8 @@ class CustomerShowtimeController extends Controller
                             'branch' => [
                                 'id' => $schedule->branch?->id,
                                 'name' => $schedule->branch?->name,
+                                'booking_mode' => $schedule->branch?->booking_mode,
+                                'category' => $schedule->branch?->category,
                             ],
                             'screen' => [
                                 'id' => $schedule->screen?->id,

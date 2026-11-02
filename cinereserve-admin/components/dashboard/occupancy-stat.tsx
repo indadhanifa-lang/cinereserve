@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Armchair } from "lucide-react";
+import { LOADING } from "@/components/dashboard/loading-value";
 
 type Occupancy = {
   rate: number;
@@ -24,7 +25,7 @@ export function OccupancyStat() {
       .catch(() => setFailed(true));
   }, []);
 
-  const value = failed ? "0%" : occupancy ? `${occupancy.rate}%` : "…";
+  const value = failed ? "0%" : occupancy ? `${occupancy.rate}%` : LOADING;
   const hint = failed
     ? "Unavailable"
     : occupancy
@@ -32,7 +33,7 @@ export function OccupancyStat() {
         ? "No active seats"
         : `${occupancy.occupied} seats reserved`
       : "Loading…";
-  const footValue = failed ? "—" : occupancy ? `${occupancy.capacity} Seats` : "…";
+  const footValue = failed ? "—" : occupancy ? `${occupancy.capacity} Seats` : LOADING;
 
   return (
     <div className="flex flex-col justify-between rounded-xl border border-border/30 bg-card p-4 shadow-sm">

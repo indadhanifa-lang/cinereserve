@@ -11,11 +11,11 @@ import {
 import {
   alertCircleOutline,
   chevronForwardOutline,
+  createOutline,
   filmOutline,
   homeOutline,
   idCardOutline,
   logOutOutline,
-  notificationsOutline,
   personCircleOutline,
   personOutline,
   receiptOutline,
@@ -24,6 +24,7 @@ import {
 import { resetHelpChat } from '../components/HelpChat';
 import { apiGetAuth, apiPostAuthLogout, clearToken, getToken, resolveStorageUrl } from '../lib/api';
 import { navigate } from '../lib/nav';
+import NotificationBell from '../components/NotificationBell';
 import './Profile.css';
 
 interface CustomerProfile {
@@ -38,6 +39,8 @@ interface CustomerProfile {
 interface ProfileResponse {
   user: CustomerProfile;
 }
+
+type TicketCounts = { upcoming: number; past: number };
 
 const getInitials = (name: string): string => {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -69,6 +72,8 @@ const Profile: React.FC = () => {
   const [showToast, setShowToast] = useState(false);
   const [toastTitle, setToastTitle] = useState('');
   const [toastSubtitle, setToastSubtitle] = useState('');
+  // Ticket counts are a nice-to-have: a failed fetch just hides the stats.
+  const [ticketCounts, setTicketCounts] = useState<TicketCounts | null>(null);
   const loadingRef = useRef(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -95,10 +100,22 @@ const Profile: React.FC = () => {
     }
   }, [showToastMessage]);
 
+  const loadTicketCounts = useCallback(async () => {
+    try {
+      const data = await apiGetAuth<{ tickets: { is_active: boolean }[] }>('/customer/tickets');
+      const tickets = Array.isArray(data.tickets) ? data.tickets : [];
+      const upcoming = tickets.filter((ticket) => ticket.is_active).length;
+      setTicketCounts({ upcoming, past: tickets.length - upcoming });
+    } catch {
+      setTicketCounts(null);
+    }
+  }, []);
+
   // Re-fetch every time the Profile page is entered (e.g. after saving
   // name/email in Personal Information and navigating back).
   useIonViewWillEnter(() => {
     loadProfile();
+    void loadTicketCounts();
   });
 
   // Safety net for the very first render in case the view lifecycle
@@ -139,9 +156,7 @@ const Profile: React.FC = () => {
             <img src="/logo.png" alt="CineReserve AI" className="profile-header__logo" />
           </div>
           <div className="profile-header__actions">
-            <button type="button" className="icon-button" aria-label="Notifications">
-              <IonIcon icon={notificationsOutline} />
-            </button>
+            <NotificationBell />
             <div className="profile-header__avatar" aria-hidden="true">
               {avatarSrc && showAvatarImage ? (
                 <img src={avatarSrc} alt="" onError={() => setFailedAvatarSrc(avatarSrc)} />
@@ -156,117 +171,127 @@ const Profile: React.FC = () => {
           <div className="profile-body">
             <div className="profile-glow" aria-hidden="true" />
 
-            <div className="profile-title-section">
-              <h1 className="profile-title">Profile</h1>
-            </div>
+            <h1 className="profile-title">Profile</h1>
 
-            <div className="profile-user-card">
-              <div className="profile-user-card__gradient" aria-hidden="true" />
-              <div className="profile-user-card__content">
-                <div className="profile-user-card__left">
-                  <div className="profile-user-card__avatar-wrap">
-                    <div className="profile-user-card__avatar" style={{ position: 'relative' }}>
-                      {loadingProfile && !user ? (
-                        <IonSpinner name="crescent" />
-                      ) : (
-                        <>
-                          <span className="profile-user-card__initials">
-                            {user ? getInitials(user.name) : '?'}
-                          </span>
-                          {avatarSrc && showAvatarImage && (
-                            <img
-                              key={avatarSrc}
-                              src={avatarSrc}
-                              alt=""
-                              aria-hidden="true"
-                              style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'cover',
-                                borderRadius: '999px',
-                              }}
-                              onError={() => setFailedAvatarSrc(avatarSrc)}
-                            />
-                          )}
-                        </>
+            <section className="profile-hero" aria-busy={loadingProfile && !user}>
+              <div className="profile-hero__top">
+                <div className="profile-hero__avatar">
+                  {loadingProfile && !user ? (
+                    <IonSpinner name="crescent" />
+                  ) : (
+                    <>
+                      <span className="profile-hero__initials">{user ? getInitials(user.name) : '?'}</span>
+                      {avatarSrc && showAvatarImage && (
+                        <img
+                          key={avatarSrc}
+                          src={avatarSrc}
+                          alt=""
+                          aria-hidden="true"
+                          onError={() => setFailedAvatarSrc(avatarSrc)}
+                        />
                       )}
-                    </div>
-                    <div className="profile-user-card__verified">
-                      <IonIcon icon={personOutline} />
-                    </div>
-                  </div>
-                  <div className="profile-user-card__info">
-                    {loadingProfile && !user ? (
-                      <IonSpinner name="dots" />
-                    ) : (
-                      <>
-                        <span className="profile-user-card__name">{user?.name ?? ''}</span>
-                        <span className="profile-user-card__email">{user?.email ?? ''}</span>
-                      </>
-                    )}
-                  </div>
+                    </>
+                  )}
                 </div>
-                <div className="profile-user-card__badge">
-                  <IonIcon icon={notificationsOutline} className="profile-user-card__badge-icon" />
-                  <span className="profile-user-card__badge-text">Elite</span>
+                <div className="profile-hero__info">
+                  {loadingProfile && !user ? (
+                    <>
+                      <span className="profile-skeleton profile-skeleton--name" />
+                      <span className="profile-skeleton profile-skeleton--email" />
+                    </>
+                  ) : (
+                    <>
+                      <span className="profile-hero__name">{user?.name ?? ''}</span>
+                      <span className="profile-hero__meta">{user?.email ?? ''}</span>
+                      {user?.phone && <span className="profile-hero__meta">{user.phone}</span>}
+                    </>
+                  )}
                 </div>
               </div>
+
+              <button
+                type="button"
+                className="profile-hero__edit"
+                onClick={() => navigate(ionRouter, '/profile/personal-information')}
+              >
+                <IonIcon icon={createOutline} />
+                <span>Edit profile</span>
+              </button>
+
+              {ticketCounts && (
+                <div className="profile-stats">
+                  <button
+                    type="button"
+                    className="profile-stat"
+                    onClick={() => navigate(ionRouter, '/tickets')}
+                  >
+                    <strong>{ticketCounts.upcoming}</strong>
+                    <span>Upcoming {ticketCounts.upcoming === 1 ? 'ticket' : 'tickets'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="profile-stat"
+                    onClick={() => navigate(ionRouter, '/history')}
+                  >
+                    <strong>{ticketCounts.past}</strong>
+                    <span>Past {ticketCounts.past === 1 ? 'show' : 'shows'}</span>
+                  </button>
+                </div>
+              )}
+            </section>
+
+            <h2 className="profile-section-header">Your activity</h2>
+            <div className="profile-menu">
+              <button type="button" className="profile-menu-item" onClick={() => navigate(ionRouter, '/tickets')}>
+                <span className="profile-menu-item__icon">
+                  <IonIcon icon={ticketOutline} />
+                </span>
+                <span className="profile-menu-item__text">
+                  <span className="profile-menu-item__label">My tickets</span>
+                  <span className="profile-menu-item__hint">Passes for your upcoming shows</span>
+                </span>
+                <IonIcon icon={chevronForwardOutline} className="profile-menu-item__chevron" />
+              </button>
+              <button type="button" className="profile-menu-item" onClick={() => navigate(ionRouter, '/history')}>
+                <span className="profile-menu-item__icon">
+                  <IonIcon icon={receiptOutline} />
+                </span>
+                <span className="profile-menu-item__text">
+                  <span className="profile-menu-item__label">Booking history</span>
+                  <span className="profile-menu-item__hint">Reservations and payments</span>
+                </span>
+                <IonIcon icon={chevronForwardOutline} className="profile-menu-item__chevron" />
+              </button>
             </div>
 
-            <div className="profile-section-header">
-              <span className="profile-section-header__text">Account</span>
-            </div>
-
+            <h2 className="profile-section-header">Account</h2>
             <div className="profile-menu">
               <button
                 type="button"
                 className="profile-menu-item"
                 onClick={() => navigate(ionRouter, '/profile/personal-information')}
               >
-                <div className="profile-menu-item__left">
-                  <div className="profile-menu-item__icon">
-                    <IonIcon icon={idCardOutline} />
-                  </div>
-                  <span className="profile-menu-item__label">Personal Information</span>
-                </div>
+                <span className="profile-menu-item__icon">
+                  <IonIcon icon={idCardOutline} />
+                </span>
+                <span className="profile-menu-item__text">
+                  <span className="profile-menu-item__label">Personal information</span>
+                  <span className="profile-menu-item__hint">Name, email, phone and photo</span>
+                </span>
                 <IonIcon icon={chevronForwardOutline} className="profile-menu-item__chevron" />
-              </button>
-
-              <button type="button" className="profile-menu-item">
-                <div className="profile-menu-item__left">
-                  <div className="profile-menu-item__icon">
-                    <IonIcon icon={notificationsOutline} />
-                  </div>
-                  <span className="profile-menu-item__label">Notifications</span>
-                </div>
-                <IonIcon icon={chevronForwardOutline} className="profile-menu-item__chevron" />
-              </button>
-
-              <button
-                type="button"
-                className="profile-menu-item profile-menu-item--danger"
-                onClick={() => setShowLogoutModal(true)}
-              >
-                <div className="profile-menu-item__left">
-                  <div className="profile-menu-item__icon profile-menu-item__icon--danger">
-                    <IonIcon icon={logOutOutline} />
-                  </div>
-                  <span className="profile-menu-item__label profile-menu-item__label--danger">Log Out</span>
-                </div>
-                <IonIcon icon={chevronForwardOutline} className="profile-menu-item__chevron profile-menu-item__chevron--danger" />
               </button>
             </div>
 
-            <div className="profile-footer">
-              <div className="profile-footer__info">
-                <IonIcon icon={notificationsOutline} className="profile-footer__icon" />
-                <span className="profile-footer__app">CineReserve AI App • v2.4.0</span>
-              </div>
-              <span className="profile-footer__powered">Powered by Neural Seating Engine</span>
-            </div>
+            <button
+              type="button"
+              className="profile-logout-btn"
+              onClick={() => setShowLogoutModal(true)}
+            >
+              <IonIcon icon={logOutOutline} />
+              <span>Log out</span>
+            </button>
+
+            <p className="profile-footer">CineReserve AI · v2.4.0</p>
           </div>
         </IonContent>
 
@@ -275,17 +300,20 @@ const Profile: React.FC = () => {
             <div className="profile-logout-modal__backdrop" />
             <div
               className="profile-logout-modal__sheet"
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="profile-logout-title"
+              aria-describedby="profile-logout-desc"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="profile-logout-modal__handle" />
               <div className="profile-logout-modal__content">
                 <div className="profile-logout-modal__icon-wrap">
                   <IonIcon icon={logOutOutline} className="profile-logout-modal__icon" />
                 </div>
                 <div className="profile-logout-modal__text">
-                  <span className="profile-logout-modal__title">Sign out of CineReserve AI?</span>
-                  <span className="profile-logout-modal__desc">
-                    Your pending reservations and VIP seating sync will be paused.
+                  <span id="profile-logout-title" className="profile-logout-modal__title">Sign out of CineReserve AI?</span>
+                  <span id="profile-logout-desc" className="profile-logout-modal__desc">
+                    You'll need to sign in again to book seats or open your tickets.
                   </span>
                 </div>
               </div>

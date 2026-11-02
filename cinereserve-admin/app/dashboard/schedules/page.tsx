@@ -24,7 +24,7 @@ type Schedule = {
 };
 
 type MovieOption = { id: number; title: string };
-type ScreenOption = { id: number; name: string };
+type ScreenOption = { id: number; name: string; rental_price: string | null };
 
 type FormErrors = Partial<
   Record<
@@ -99,6 +99,7 @@ export default function SchedulesPage() {
   const [editing, setEditing] = useState<Schedule | null>(null);
   const [movies, setMovies] = useState<MovieOption[]>([]);
   const [screens, setScreens] = useState<ScreenOption[]>([]);
+  const [roomMode, setRoomMode] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -135,8 +136,24 @@ export default function SchedulesPage() {
     fetch("/api/admin/screens")
       .then((res) => res.json())
       .then((data) => setScreens(data.screens ?? []))
-      .catch(() => toast.error("Unable to load screens. Try again."));
+      .catch(() => toast.error("Unable to load rooms. Try again."));
+    fetch("/api/admin/me")
+      .then((res) => res.json())
+      .then((data) => setRoomMode(data.user?.branch?.booking_mode === "room"))
+      .catch(() => {});
   }, []);
+
+  // By-Room: the schedule price is the whole-room price, defaulting to the room's rate.
+  const priceLabel = roomMode ? "Room Price" : "Ticket Price";
+  const selectScreen = (screenId: string) =>
+    setForm((prev) => {
+      const rate = screens.find((screen) => String(screen.id) === screenId)?.rental_price;
+      return {
+        ...prev,
+        screen_id: screenId,
+        ticket_price: roomMode && !prev.ticket_price && rate ? String(Number(rate)) : prev.ticket_price,
+      };
+    });
 
   const openModal = () => {
     setEditing(null);
@@ -352,16 +369,16 @@ export default function SchedulesPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="schedule-screen">Screen</Label>
+            <Label htmlFor="schedule-screen">Room</Label>
             <select
               id="schedule-screen"
               value={form.screen_id}
-              onChange={(e) => setForm((prev) => ({ ...prev, screen_id: e.target.value }))}
+              onChange={(e) => selectScreen(e.target.value)}
               className="h-11 rounded-xl border border-input bg-background px-3 text-sm text-foreground shadow-inner outline-none focus-visible:ring-2 focus-visible:ring-ring"
               aria-invalid={Boolean(errors.screen_id)}
               disabled={saving}
             >
-              <option value="">Select a screen</option>
+              <option value="">Select a room</option>
               {screens.map((screen) => (
                 <option key={screen.id} value={screen.id}>
                   {screen.name}
@@ -416,7 +433,7 @@ export default function SchedulesPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="schedule-price">Ticket Price</Label>
+            <Label htmlFor="schedule-price">{priceLabel}</Label>
             <Input
               id="schedule-price"
               type="number"
@@ -540,7 +557,8 @@ export default function SchedulesPage() {
               <th className="px-4 py-3 font-medium">Show Date</th>
               <th className="px-4 py-3 font-medium">Start Time</th>
               <th className="px-4 py-3 font-medium">End Time</th>
-              <th className="px-4 py-3 font-medium">Ticket Price</th>
+              <th className="px-4 py-3 font-medium">{priceLabel}</th>
+
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">
                 <span className="sr-only">Actions</span>

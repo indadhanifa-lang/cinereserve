@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Wallet } from "lucide-react";
+import { LOADING } from "@/components/dashboard/loading-value";
 
 type BoxOffice = {
   today_box_office: string;
@@ -32,7 +33,7 @@ export function BoxOfficeStat() {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
         })}`
-      : "…";
+      : LOADING;
   const hint = failed
     ? "Unavailable"
     : boxOffice
@@ -44,7 +45,7 @@ export function BoxOfficeStat() {
     ? "—"
     : boxOffice
       ? String(boxOffice.today_paid_transactions)
-      : "…";
+      : LOADING;
 
   return (
     <div className="flex flex-col justify-between rounded-xl border border-border/30 bg-card p-4 shadow-sm">

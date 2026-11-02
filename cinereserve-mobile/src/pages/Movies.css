@@ -156,6 +156,57 @@
   color: var(--text);
 }
 
+/* ── Showtime tabs: one segmented control ── */
+.movies-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--surface-low);
+}
+
+.movies-tab {
+  flex: 1;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted-strong);
+  font-family: var(--ion-font-family);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 200ms ease-out, color 200ms ease-out;
+}
+
+.movies-tab:hover {
+  color: var(--text);
+}
+
+.movies-tab--active {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
+}
+
+.movies-tab:focus-visible {
+  outline: 2px solid var(--secondary);
+  outline-offset: 2px;
+}
+
+.movies-count {
+  margin: 4px 0 -4px;
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-strong);
+}
+
 /* ── Filter Pills ────────────────────────── */
 .movies-pills {
   display: flex;
@@ -174,39 +225,13 @@
   display: none;
 }
 
-.movies-pill {
-  flex-shrink: 0;
-  padding: 8px 16px;
-  border: none;
-  border-radius: 999px;
-  font-family: var(--ion-font-family);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  line-height: 16px;
-  cursor: pointer;
-  transition: background-color 200ms ease-out, color 200ms ease-out, box-shadow 200ms ease-out;
-  background: var(--surface-low);
-  color: var(--muted-strong);
-}
-
-.movies-pill:hover {
-  color: var(--text);
-}
-
-.movies-pill--active {
-  background: var(--primary-container);
-  color: var(--on-primary-container);
-  box-shadow: 0 0 16px rgba(124, 58, 237, 0.35);
-}
-
 /* Genre dropdown: a pill showing the current value, with the real native
    select stretched invisibly on top; outlined once a genre is picked. */
 .movies-select {
   position: relative;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  align-self: flex-start;
   gap: 6px;
   max-width: 100%;
   padding: 8px 14px;
@@ -263,24 +288,6 @@
 .movies-select option {
   background: var(--surface-low);
   color: var(--text);
-}
-
-/* Branch row: outlined when active, so it reads as a lighter, secondary
-   filter under the filled tab pills. */
-.movies-pill--outline {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.movies-pill--outline ion-icon {
-  font-size: 14px;
-}
-
-.movies-pill--outline.movies-pill--active {
-  background: rgba(124, 58, 237, 0.16);
-  color: var(--secondary);
-  box-shadow: inset 0 0 0 1px rgba(124, 58, 237, 0.65);
 }
 
 /* ── Empty State Card ────────────────────── */
@@ -499,7 +506,28 @@
 .movies-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 12px;
+  gap: 20px 12px;
+}
+
+/* Corner tag on the poster art (Today / Mini cinema). */
+.movies-grid .poster-card__art {
+  position: relative;
+}
+
+.poster-card__tag {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: rgba(19, 19, 23, 0.78);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: var(--secondary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .movie-card {
@@ -882,8 +910,40 @@
 
 .movie-details__trailer {
   align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: none;
   font-size: 13px;
   font-weight: 600;
   color: var(--secondary);
   text-decoration: none;
+  cursor: pointer;
+}
+
+/* Trailer player: its own dark overlay above the details sheet. */
+.trailer-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.92);
+  animation: movies-modal-pop 200ms ease-out;
+}
+
+.trailer-modal__close {
+  position: absolute;
+  top: calc(16px + env(safe-area-inset-top));
+  right: 16px;
+}
+
+.trailer-modal__player {
+  width: 100%;
+  max-width: 720px;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 12px;
+  background: #000;
 }

@@ -3,9 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\Customer;
 use App\Models\Movie;
-use App\Models\Organization;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -15,9 +14,7 @@ class CustomerComingSoonTest extends TestCase
 
     public function test_showtimes_feed_lists_only_active_unreleased_movies_by_release_date(): void
     {
-        $organization = Organization::create(['name' => 'Cinema Co', 'slug' => 'cinema-co']);
         $branch = Branch::create([
-            'organization_id' => $organization->id,
             'name' => 'Central',
             'slug' => 'central',
             'address' => 'Main Street',
@@ -37,7 +34,7 @@ class CustomerComingSoonTest extends TestCase
         $movie('No Date', null);
         $movie('Hidden', now()->addWeek()->toDateString(), 'inactive');
 
-        $customer = User::factory()->create(['role' => 'customer', 'status' => 'active']);
+        $customer = Customer::factory()->create(['status' => 'active']);
 
         $this->actingAs($customer, 'sanctum')
             ->getJson('/api/customer/showtimes')

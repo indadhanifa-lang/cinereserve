@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\CustomerNotification;
 use App\Models\Genre;
 use App\Models\Movie;
 use Illuminate\Filesystem\FilesystemAdapter;
@@ -27,6 +28,7 @@ class MovieController extends Controller
         'age_rating' => ['nullable', 'string', 'max:20'],
         'status' => ['nullable', 'in:active,inactive'],
         'poster' => ['nullable', 'image', 'max:8192'],
+        'trailer_url' => ['nullable', 'url:http,https', 'max:500'],
         'genres' => ['nullable', 'string'],
     ];
 
@@ -69,6 +71,7 @@ class MovieController extends Controller
             'release_date' => $data['release_date'] ?? null,
             'language' => $data['language'] ?? null,
             'age_rating' => $data['age_rating'] ?? null,
+            'trailer_url' => $data['trailer_url'] ?? null,
             'status' => $data['status'] ?? 'active',
         ]);
         $movie->branch_id = $branchId;
@@ -80,6 +83,9 @@ class MovieController extends Controller
         if (! empty($data['genres'])) {
             $this->syncGenres($movie, $data['genres']);
         }
+        // A mini cinema's first movie can complete its setup.
+        $request->user()->branch->syncStatus();
+        CustomerNotification::announceMovie($movie);
 
         return response()->json([
             'movie' => $movie->only(self::MOVIE_FIELDS) + ['genres' => $movie->genres->pluck('name')],
@@ -115,12 +121,14 @@ class MovieController extends Controller
             'release_date' => $data['release_date'] ?? null,
             'language' => $data['language'] ?? null,
             'age_rating' => $data['age_rating'] ?? null,
+            'trailer_url' => $data['trailer_url'] ?? null,
             'status' => $data['status'] ?? $movie->status,
         ]);
 
         $this->storePoster($request, $movie);
         $movie->save();
         $this->syncGenres($movie, $data['genres'] ?? '');
+        CustomerNotification::announceMovie($movie);
 
         return response()->json([
             'movie' => $movie->only(self::MOVIE_FIELDS) + ['genres' => $movie->genres()->pluck('name')],
@@ -148,6 +156,8 @@ class MovieController extends Controller
         }
 
         $movie->update(['status' => $data['status']]);
+        $request->user()->branch->syncStatus();
+        CustomerNotification::announceMovie($movie);
 
         return response()->json(['movie' => ['id' => $movie->id, 'status' => $movie->status]]);
     }
@@ -201,7 +211,7 @@ class MovieController extends Controller
      */
     private function ownBranchId(Request $request)
     {
-        $branchId = $request->user()->branch_id;
+        $branchId = $request->user()->current_branch_id;
 
         if (! $branchId) {
             return response()->json([

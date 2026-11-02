@@ -9,6 +9,7 @@ import {
 } from "@ionic/react";
 import {
   alertCircleOutline,
+  arrowBackOutline,
   arrowForwardOutline,
   callOutline,
   eyeOffOutline,
@@ -141,6 +142,15 @@ const Register: React.FC = () => {
         <div className="reg-page">
           <div className="reg-glow" aria-hidden="true" />
           <div className="reg-glow-right" aria-hidden="true" />
+
+          <button
+            type="button"
+            className="auth-back"
+            aria-label="Back to welcome page"
+            onClick={() => ionRouter.push("/welcome", "back")}
+          >
+            <IonIcon icon={arrowBackOutline} />
+          </button>
 
           <header className="reg-header">
             <div className="reg-logo-wrap">
