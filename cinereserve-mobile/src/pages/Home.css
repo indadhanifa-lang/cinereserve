@@ -252,9 +252,15 @@
   color: var(--muted-strong);
 }
 
-.home-loading ion-icon {
+.home-loading ion-icon,
+.home-loading ion-spinner {
   font-size: 32px;
   color: var(--secondary);
+}
+
+.home-loading ion-spinner {
+  width: 32px;
+  height: 32px;
 }
 
 .home-loading__text {
@@ -285,6 +291,76 @@
 .showing-list > .poster-card {
   flex: 0 0 clamp(140px, 42%, 220px);
   scroll-snap-align: start;
+}
+
+/* Recommended for You: one poster row that drifts left forever. Bleeds to
+ * the screen edges like .showing-list, with the edges faded out. Spacing is
+ * margin, not gap, so both copies are exactly the same width and -50% lands
+ * the second copy where the first began. */
+.poster-marquee {
+  margin: 0 -20px 24px;
+  padding: 0 20px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.poster-marquee::-webkit-scrollbar {
+  display: none;
+}
+
+.poster-marquee--moving {
+  padding: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent);
+}
+
+.poster-marquee__track,
+.poster-marquee__group {
+  display: flex;
+  width: max-content;
+}
+
+.poster-marquee--moving .poster-marquee__track {
+  animation: poster-marquee var(--marquee-duration, 24s) linear infinite;
+}
+
+/* A finger or pointer on it holds it still so a poster can be tapped. */
+.poster-marquee--moving:hover .poster-marquee__track,
+.poster-marquee--moving:active .poster-marquee__track,
+.poster-marquee--moving:focus-within .poster-marquee__track {
+  animation-play-state: paused;
+}
+
+.poster-marquee .poster-card {
+  flex: 0 0 96px;
+  margin-right: 10px;
+}
+
+.poster-marquee .poster-card__art {
+  margin-bottom: 0;
+  border-radius: 12px; /* 18px is too round at this width */
+}
+
+@keyframes poster-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* Reduced motion: a still row the customer can swipe, without the copy. */
+@media (prefers-reduced-motion: reduce) {
+  .poster-marquee--moving {
+    overflow-x: auto;
+  }
+
+  .poster-marquee--moving .poster-marquee__track {
+    animation: none;
+  }
+
+  .poster-marquee__group[aria-hidden="true"] {
+    display: none;
+  }
 }
 
 .poster-card {

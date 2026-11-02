@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { IonIcon, IonSpinner, useIonRouter, useIonViewWillEnter } from "@ionic/react";
 import { checkmarkDoneOutline, filmOutline, notificationsOffOutline, notificationsOutline } from "ionicons/icons";
 import { apiGetAuth, apiPatchAuth, apiPostAuth, resolveStorageUrl } from "../lib/api";
 import { navigate } from "../lib/nav";
+import MovieDetailsSheet, { type MovieDetails } from "./MovieDetailsSheet";
 import "../pages/Notifications.css";
 
 interface CustomerNotification {
@@ -40,6 +42,7 @@ const NotificationBell: React.FC = () => {
   const [items, setItems] = useState<CustomerNotification[] | null>(null);
   const [error, setError] = useState(false);
   const [open, setOpen] = useState(false);
+  const [details, setDetails] = useState<MovieDetails | null>(null);
 
   const load = () => {
     setError(false);
@@ -54,6 +57,7 @@ const NotificationBell: React.FC = () => {
   // Pages stay mounted in Ionic, so recount each time the page comes back.
   useIonViewWillEnter(() => {
     setOpen(false);
+    setDetails(null);
     load();
   });
 
@@ -99,8 +103,9 @@ const NotificationBell: React.FC = () => {
     });
   };
 
-  // Marks the tapped one read, then mini cinemas book the movie directly and
-  // regular cinemas go through showtimes.
+  // Marks the tapped one read, then opens the movie's details from the same
+  // feed the Movies tab uses. A movie no longer in it (no upcoming showtimes)
+  // falls back to booking the mini cinema or the Movies tab.
   const openItem = (item: CustomerNotification) => {
     setOpen(false);
     if (item.unread) {
@@ -110,11 +115,20 @@ const NotificationBell: React.FC = () => {
         .then((data) => setUnread(data.unread_count))
         .catch(() => undefined);
     }
-    if (!item.branch) return;
-    navigate(
-      ionRouter,
-      item.branch.category === "mini_cinema" ? `/booking/room?branch=${item.branch.id}&movie=${item.movie_id}` : "/movies"
-    );
+    const branch = item.branch;
+    if (!branch) return;
+    const fallback = () =>
+      navigate(
+        ionRouter,
+        branch.category === "mini_cinema" ? `/booking/room?branch=${branch.id}&movie=${item.movie_id}` : "/movies"
+      );
+    apiGetAuth<{ movies?: MovieDetails[]; cinema_movies?: MovieDetails[] }>("/customer/showtimes")
+      .then((feed) => {
+        const movie = [...(feed.movies ?? []), ...(feed.cinema_movies ?? [])].find((m) => m.id === item.movie_id);
+        if (movie) setDetails(movie);
+        else fallback();
+      })
+      .catch(fallback);
   };
 
   return (
@@ -190,6 +204,9 @@ const NotificationBell: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Portaled: the page header's backdrop-filter would trap a fixed sheet inside it. */}
+      {details && createPortal(<MovieDetailsSheet movie={details} onClose={() => setDetails(null)} />, document.body)}
     </div>
   );
 };

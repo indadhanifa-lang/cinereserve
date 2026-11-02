@@ -51,6 +51,12 @@ interface ShowtimesResponse {
   cinema_movies?: MovieDetails[];
 }
 
+/** Movie ids from the Now Showing feed; reason is null for "popular" picks. */
+interface RecommendationsResponse {
+  source: "ai" | "genre" | "popular" | "none";
+  recommendations: { movie_id: number; reason: string | null }[];
+}
+
 interface PendingReservation {
   id: number;
   reservation_code: string;
@@ -269,6 +275,14 @@ const Home: React.FC = () => {
   const [cinemaMovies, setCinemaMovies] = useState<MovieDetails[]>([]);
   // Now Showing: cinema showtimes first, then mini cinema catalogs.
   const posters = [...movies, ...cinemaMovies];
+  // Home carousel shows the first 10; "See all" opens the full list.
+  const nowShowingPosters = posters.slice(0, 10);
+  const [recommended, setRecommended] = useState<RecommendationsResponse | null>(null);
+  // Ids the feed no longer has (stopped showing since) are skipped.
+  const recommendedMovies = (recommended?.recommendations ?? []).flatMap((pick) => {
+    const movie = posters.find((poster) => poster.id === pick.movie_id);
+    return movie ? [{ movie, reason: pick.reason }] : [];
+  });
   const [detailsMovie, setDetailsMovie] = useState<MovieDetails | null>(null);
   const [upcomingTickets, setUpcomingTickets] = useState<UpcomingTicket[]>([]);
   const ticketCarousel = useAutoCarousel(upcomingTickets.length);
@@ -277,7 +291,7 @@ const Home: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [failedAvatarSrc, setFailedAvatarSrc] = useState<string | null>(null);
   const [failedPosterIds, setFailedPosterIds] = useState<number[]>([]);
-  const nowShowing = useAutoCarousel(posters.length);
+  const nowShowing = useAutoCarousel(nowShowingPosters.length);
   const [showToast, setShowToast] = useState(false);
   const [toastTitle, setToastTitle] = useState("");
   const [toastSubtitle, setToastSubtitle] = useState("");
@@ -300,6 +314,12 @@ const Home: React.FC = () => {
   const loadHomeData = useCallback(async () => {
     const requestId = ++requestRef.current;
     setLoading(true);
+
+    // Gemini can take seconds, so this loads on its own instead of holding up
+    // the page; a failure just hides the section.
+    apiGetAuth<RecommendationsResponse>("/customer/recommendations")
+      .then((result) => requestId === requestRef.current && setRecommended(result))
+      .catch(() => requestId === requestRef.current && setRecommended(null));
 
     const [profileResult, showtimesResult, pendingResult, ticketsResult] = await Promise.allSettled([
       apiGetAuth<ProfileResponse>("/customer/me"),
@@ -652,7 +672,7 @@ const Home: React.FC = () => {
 
             {loading ? (
               <div className="home-loading" role="status" aria-live="polite">
-                <IonSpinner name="dots" />
+                <IonSpinner name="crescent" />
                 <span className="home-loading__text">Finding showtimes…</span>
               </div>
             ) : posters.length > 0 ? (
@@ -669,7 +689,7 @@ const Home: React.FC = () => {
                 </div>
 
                 <div className="showing-list" {...nowShowing.props}>
-                  {posters.map((movie) => {
+                  {nowShowingPosters.map((movie) => {
                     return (
                       <article
                         className="poster-card"
@@ -697,10 +717,10 @@ const Home: React.FC = () => {
                   })}
                 </div>
 
-                {posters.length > 1 && (
+                {nowShowingPosters.length > 1 && (
                   <div className="showing-dots">
-                    {posters.map((movie, index) => {
-                      const current = index === Math.min(nowShowing.active, posters.length - 1);
+                    {nowShowingPosters.map((movie, index) => {
+                      const current = index === Math.min(nowShowing.active, nowShowingPosters.length - 1);
                       return (
                         <button
                           key={movie.id}
@@ -752,6 +772,49 @@ const Home: React.FC = () => {
                   </span>
                 </button>
               </div>
+            )}
+
+            {!loading && recommendedMovies.length > 0 && (
+              <section className="home-today" aria-label="Recommended for You">
+                <div className="section-label">
+                  <span>{recommended?.source === "popular" ? "Popular Right Now" : "Recommended for You"}</span>
+                  {recommended?.source === "ai" && <span className="section-label__accent">AI picks</span>}
+                </div>
+
+                {/* Marquee: the row is rendered twice and slides by one copy's
+                    width, so it loops seamlessly. Too few posters to fill the
+                    screen stay a still row. The copy is hidden from screen
+                    readers and the keyboard. */}
+                <div
+                  className={`poster-marquee${recommendedMovies.length >= 4 ? " poster-marquee--moving" : ""}`}
+                  style={{ "--marquee-duration": `${recommendedMovies.length * 4}s` } as React.CSSProperties}
+                >
+                  <div className="poster-marquee__track">
+                    {(recommendedMovies.length >= 4 ? [false, true] : [false]).map((copy) => (
+                      <div className="poster-marquee__group" key={String(copy)} aria-hidden={copy || undefined}>
+                        {recommendedMovies.map(({ movie, reason }) => (
+                          <article
+                            className="poster-card"
+                            key={movie.id}
+                            role="button"
+                            tabIndex={copy ? -1 : 0}
+                            aria-label={`${movie.title} details${reason ? `. ${reason}` : ""}`}
+                            onClick={() => setDetailsMovie(movie)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                setDetailsMovie(movie);
+                              }
+                            }}
+                          >
+                            <div className="poster-card__art">{renderPoster(movie.id, movie.poster_url)}</div>
+                          </article>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </section>
             )}
 
             <section className="home-today" aria-label="Mini Cinemas">
