@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\Customer;
 use App\Models\Movie;
-use App\Models\Organization;
 use App\Models\Screen;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -24,7 +24,7 @@ class DashboardOccupancyTest extends TestCase
 
     public function test_admin_without_a_branch_gets_a_404(): void
     {
-        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'branch_id' => null]);
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'current_branch_id' => null]);
 
         $this->actingAs($admin, 'sanctum')
             ->getJson('/api/admin/dashboard/occupancy')
@@ -93,7 +93,7 @@ class DashboardOccupancyTest extends TestCase
         return User::factory()->create([
             'role' => 'admin',
             'status' => 'active',
-            'branch_id' => $branch->id,
+            'current_branch_id' => $branch->id,
         ]);
     }
 
@@ -102,18 +102,14 @@ class DashboardOccupancyTest extends TestCase
      */
     private function twoBranches(): array
     {
-        $organization = Organization::create(['name' => 'Cinema Co', 'slug' => 'cinema-co']);
-
         return [
             Branch::create([
-                'organization_id' => $organization->id,
                 'name' => 'Central',
                 'slug' => 'central',
                 'address' => 'Main Street',
                 'city' => 'Cagayan de Oro',
             ]),
             Branch::create([
-                'organization_id' => $organization->id,
                 'name' => 'Uptown',
                 'slug' => 'uptown',
                 'address' => 'Uptown Avenue',
@@ -174,7 +170,7 @@ class DashboardOccupancyTest extends TestCase
         ]);
 
         $reservationId = DB::table('reservations')->insertGetId([
-            'user_id' => $this->admin($branch)->id,
+            'customer_id' => Customer::factory()->create()->id,
             'schedule_id' => $scheduleId,
             'reservation_code' => 'BOOKING-'.uniqid(),
             'subtotal' => 250 * count($seatIds),

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Customer;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -78,7 +79,7 @@ class AdminPasswordTest extends TestCase
 
     public function test_customer_token_cannot_change_password_here(): void
     {
-        $customer = User::factory()->create(['role' => 'customer', 'status' => 'active']);
+        $customer = Customer::factory()->create(['status' => 'active']);
         $token = $customer->createToken('customer-app')->plainTextToken;
 
         $this->withToken($token)->patchJson('/api/admin/password', [

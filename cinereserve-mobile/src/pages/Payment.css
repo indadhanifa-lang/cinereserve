@@ -102,106 +102,154 @@
   color: var(--secondary);
 }
 
-/* ── Sections ───────────────────────────── */
+/* ── Hold timer ─────────────────────────── */
 .pay-hold {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: rgba(124, 58, 237, 0.16);
-  color: var(--on-primary);
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(124, 58, 237, 0.14);
+  color: var(--muted-strong);
   font-size: 13px;
   transition: background-color 300ms ease-out, color 300ms ease-out;
 }
 
 .pay-hold ion-icon {
-  font-size: 18px;
+  font-size: 17px;
   color: var(--secondary);
 }
 
 .pay-hold strong {
   margin-left: auto;
   font-family: 'Outfit', var(--ion-font-family);
-  font-size: 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
   font-variant-numeric: tabular-nums;
 }
 
 /* Last two minutes */
 .pay-hold--urgent {
-  background: rgba(245, 158, 11, 0.16);
+  background: rgba(245, 158, 11, 0.14);
   color: #fbbf24;
 }
 
-.pay-hold--urgent ion-icon {
+.pay-hold--urgent ion-icon,
+.pay-hold--urgent strong {
   color: #fbbf24;
 }
 
-.pay-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 14px;
-  border-radius: 14px;
-  background: var(--surface);
-  box-shadow: inset 0 0 0 1px rgba(124, 58, 237, 0.18);
+/* ── Order card: one ticket-shaped summary ─ */
+.pay-order {
+  --notch: 9px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background:
+    radial-gradient(120% 70% at 0% 0%, rgba(124, 58, 237, 0.18) 0%, transparent 60%),
+    var(--surface);
 }
 
-.pay-section__label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--secondary);
-}
-
-.pay-section__code {
-  text-align: center;
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--secondary);
-}
-
-.pay-section__movie {
+.pay-order__top {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
+  padding: 18px 18px 14px;
 }
 
-.pay-section__movie-icon {
+.pay-order__icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: rgba(124, 58, 237, 0.18);
   color: var(--secondary);
-  font-size: 18px;
+  font-size: 22px;
 }
 
-.pay-section__movie strong {
+.pay-order__heading {
+  min-width: 0;
+}
+
+.pay-order__title {
+  margin: 0;
   font-family: 'Outfit', var(--ion-font-family);
-  font-size: 15px;
+  font-size: 19px;
+  line-height: 24px;
   font-weight: 600;
+  letter-spacing: -0.015em;
   color: var(--text);
+  overflow-wrap: anywhere;
 }
 
-.pay-info {
+.pay-order__place {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted-strong);
+}
+
+.pay-order__meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 0 18px 16px;
+}
+
+.pay-order__meta div {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.pay-info__place {
-  font-size: 13px;
+.pay-order__meta span,
+.pay-order__code span {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.pay-order__meta strong {
+  font-size: 14px;
   font-weight: 600;
   color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 
-.pay-info__date {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--muted-strong);
+/* Perforation with side notches between the details and the price. */
+.pay-order__lines {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
+  border-top: 2px dashed rgba(255, 255, 255, 0.1);
 }
 
-.pay-info__time {
-  font-size: 13px;
-  color: var(--muted-strong);
+.pay-order__lines::before,
+.pay-order__lines::after {
+  content: '';
+  position: absolute;
+  top: calc(-1 * var(--notch) - 1px);
+  width: calc(var(--notch) * 2);
+  height: calc(var(--notch) * 2);
+  border-radius: 999px;
+  background: var(--bg);
+}
+
+.pay-order__lines::before {
+  left: calc(-1 * var(--notch) - 1px);
+}
+
+.pay-order__lines::after {
+  right: calc(-1 * var(--notch) - 1px);
 }
 
 .pay-row {
@@ -221,22 +269,68 @@
   font-weight: 600;
   color: var(--text);
   text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.pay-row--discount strong {
+  color: #86efac;
 }
 
 .pay-row--total {
-  margin-top: 4px;
-  padding-top: 8px;
+  margin-top: 2px;
+  padding-top: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
-  font-family: 'Outfit', var(--ion-font-family);
-  font-size: 15px;
+}
+
+.pay-row--total span {
+  color: var(--text);
   font-weight: 600;
 }
 
+.pay-row--total strong {
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 20px;
+  line-height: 24px;
+}
+
+.pay-order__code {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+  background: var(--surface-low);
+}
+
+.pay-order__code strong {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--secondary);
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
 /* ── Payment method (simulated only) ────── */
+.pay-method-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .pay-section__heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 0 2px;
+}
+
+.pay-heading {
+  margin: 0;
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
 }
 
 .pay-methods {
@@ -250,10 +344,10 @@
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: transparent;
-  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1.5px solid transparent;
   color: inherit;
   font: inherit;
   text-align: left;
@@ -275,8 +369,8 @@
 }
 
 .pay-method--selected {
-  background: rgba(124, 58, 237, 0.08);
-  border-color: rgba(124, 58, 237, 0.55);
+  background: rgba(124, 58, 237, 0.1);
+  border-color: rgba(124, 58, 237, 0.6);
 }
 
 .pay-method:focus-visible {
@@ -284,25 +378,17 @@
   outline-offset: 2px;
 }
 
-/* Radio dot: hollow ring, filled when selected. */
-.pay-method__dot {
-  flex-shrink: 0;
-  width: 16px;
-  height: 16px;
-  border-radius: 999px;
-  box-shadow: inset 0 0 0 2px var(--muted);
-  transition: background-color 150ms ease-out, box-shadow 150ms ease-out;
-}
-
-.pay-method--selected .pay-method__dot {
-  background: var(--secondary);
-  box-shadow: 0 0 10px rgba(124, 58, 237, 0.65);
-}
-
 .pay-method__icon {
   flex-shrink: 0;
-  font-size: 22px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--surface-high);
   color: var(--secondary);
+  font-size: 20px;
 }
 
 .pay-method__body {
@@ -314,23 +400,39 @@
 }
 
 .pay-method__body strong {
-  font-family: 'Outfit', var(--ion-font-family);
   font-size: 14px;
   font-weight: 600;
   color: var(--text);
 }
 
 .pay-method__body span {
-  font-size: 11.5px;
-  line-height: 15px;
-  color: var(--muted-strong);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted);
+}
+
+/* Radio: hollow ring, with a centre dot when selected. */
+.pay-method__dot {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 2px var(--muted);
+  transition: box-shadow 150ms ease-out;
+}
+
+.pay-method--selected .pay-method__dot {
+  box-shadow:
+    inset 0 0 0 2px var(--secondary),
+    inset 0 0 0 5px var(--surface),
+    inset 0 0 0 10px var(--secondary);
 }
 
 .pay-method__badge {
   flex-shrink: 0;
   padding: 3px 8px;
   border-radius: 999px;
-  background: rgba(124, 58, 237, 0.25);
+  background: rgba(124, 58, 237, 0.2);
   color: var(--secondary);
   font-size: 10px;
   font-weight: 700;
@@ -338,62 +440,101 @@
   text-transform: uppercase;
 }
 
-/* ── Pay footer ─────────────────────────── */
-.pay-footer {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 4px;
+.pay-note {
+  margin: 0;
+  padding: 0 2px;
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--muted);
 }
 
-.pay-footer__button {
+/* ── Sticky pay bar ─────────────────────── */
+.pay-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 -12px 30px rgba(0, 0, 0, 0.35);
+}
+
+.pay-bar__row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.pay-bar__total {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pay-bar__total span {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.pay-bar__total strong {
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 22px;
+  line-height: 26px;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.pay-bar__button {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  width: 100%;
-  padding: 15px 20px;
+  height: 52px;
   border: none;
-  border-radius: 14px;
+  border-radius: 999px;
   background: var(--primary);
-  color: #fff;
-  font-family: 'Outfit', var(--ion-font-family);
+  color: var(--on-primary);
+  font-family: inherit;
   font-size: 15px;
   font-weight: 600;
-  letter-spacing: 0.02em;
   cursor: pointer;
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.35);
   transition: transform 150ms ease-out, opacity 150ms ease-out;
 }
 
-.pay-footer__button:active:not(:disabled) {
+.pay-bar__button:active:not(:disabled) {
   transform: scale(0.98);
 }
 
-.pay-footer__button--paid {
-  background: #16a34a;
+.pay-bar__button:disabled {
+  cursor: progress;
+  opacity: 0.8;
 }
 
-.pay-footer__button--paid ion-icon {
+.pay-bar__button:focus-visible {
+  outline: 2px solid var(--secondary);
+  outline-offset: 2px;
+}
+
+.pay-bar__button ion-spinner {
+  width: 18px;
+  height: 18px;
+}
+
+.pay-bar__button--paid {
+  width: 100%;
+  background: #15803d;
+  color: #ecfdf5;
+  box-shadow: none;
+}
+
+.pay-bar__button--paid ion-icon {
   font-size: 20px;
 }
 
-.pay-footer__button--busy {
-  cursor: progress;
-  opacity: 0.85;
-}
-
-.pay-footer__spinner {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.pay-footer__spinner ion-spinner {
-  width: 16px;
-  height: 16px;
-}
-
-.pay-footer__note {
+.pay-bar__ref {
   margin: 0;
   text-align: center;
   font-size: 11px;
@@ -485,9 +626,9 @@
 .pay-modal__backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: rgba(8, 6, 14, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 .pay-modal__sheet {
@@ -495,34 +636,30 @@
   z-index: 1;
   display: flex;
   flex-direction: column;
+  gap: 16px;
   width: 100%;
-  max-width: 420px;
-  max-height: 86vh;
-  border-radius: 16px;
-  background: var(--surface);
-  border: 1px solid rgba(124, 58, 237, 0.25);
+  max-width: 380px;
+  max-height: 90dvh;
+  overflow-y: auto;
+  padding: 28px 20px 20px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background:
+    radial-gradient(90% 45% at 50% 0%, rgba(34, 197, 94, 0.14) 0%, transparent 70%),
+    var(--surface);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  animation: pay-modal-in 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  scrollbar-width: none;
 }
 
-.pay-modal__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 16px 16px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.pay-modal__title {
-  margin: 0;
-  font-family: 'Outfit', var(--ion-font-family);
-  font-size: 17px;
-  line-height: 22px;
-  font-weight: 600;
-  color: var(--text);
+.pay-modal__sheet::-webkit-scrollbar {
+  display: none;
 }
 
 .pay-modal__close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -530,41 +667,72 @@
   height: 32px;
   border: none;
   border-radius: 999px;
-  background: var(--surface-high);
+  background: rgba(255, 255, 255, 0.06);
   color: var(--muted-strong);
   font-size: 18px;
   cursor: pointer;
 }
 
-/* Scrolling works; the visual scrollbar stays hidden — app convention. */
-.pay-modal__scroll {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 4px 16px 8px;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.pay-modal__scroll::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
-}
-
-.pay-modal__section {
+.pay-success__hero {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 14px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  align-items: center;
+  gap: 4px;
+  text-align: center;
 }
 
-.pay-modal__section:last-child {
-  border-bottom: none;
+.pay-success__check {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #16a34a;
+  color: #f0fdf4;
+  font-size: 34px;
+  box-shadow: 0 0 0 8px rgba(34, 197, 94, 0.14), 0 10px 30px rgba(22, 163, 74, 0.45);
+  animation: pay-check-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1) 120ms both;
 }
 
-.pay-modal__section-label {
+.pay-success__title {
+  margin: 0;
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pay-success__amount {
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 32px;
+  line-height: 38px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.pay-success__method {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* The one code the customer actually needs, framed like a stub. */
+.pay-success__ticket {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1.5px dashed rgba(210, 187, 255, 0.28);
+  background: rgba(124, 58, 237, 0.08);
+  text-align: center;
+}
+
+.pay-success__ticket span {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -572,79 +740,139 @@
   color: var(--secondary);
 }
 
-.pay-modal__row {
+.pay-success__ticket strong {
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.pay-success__ticket small {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.pay-success__details {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.pay-success__details div {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  font-size: 13px;
-  line-height: 18px;
+  padding: 10px 2px;
 }
 
-.pay-modal__row span {
-  color: var(--muted-strong);
+.pay-success__details div + div {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.pay-modal__row strong {
+.pay-success__details dt {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pay-success__details dd {
+  margin: 0;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text);
   text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.pay-success__chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.pay-success__chips span {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.14);
+  color: #86efac;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
 }
 
 .pay-modal__actions {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px 16px 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.pay-modal__confirm,
+.pay-modal__secondary {
+  height: 50px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 120ms ease-out, background-color 150ms ease-out;
 }
 
 .pay-modal__confirm {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 13px 16px;
   border: none;
-  border-radius: 13px;
   background: var(--primary);
-  color: #fff;
-  font-family: 'Outfit', var(--ion-font-family);
-  font-size: 13.5px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  cursor: pointer;
-  transition: transform 150ms ease-out;
-}
-
-.pay-modal__confirm:active {
-  transform: scale(0.98);
+  color: var(--on-primary);
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.35);
 }
 
 .pay-modal__secondary {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 13px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   background: transparent;
   color: var(--muted-strong);
-  font-family: 'Outfit', var(--ion-font-family);
-  font-size: 13.5px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  cursor: pointer;
-  transition: transform 150ms ease-out;
 }
 
+.pay-modal__confirm:active,
 .pay-modal__secondary:active {
   transform: scale(0.98);
 }
 
-.pay-success__status {
-  color: var(--secondary);
+.pay-modal__close:focus-visible,
+.pay-modal__confirm:focus-visible,
+.pay-modal__secondary:focus-visible {
+  outline: 2px solid var(--secondary);
+  outline-offset: 2px;
+}
+
+@keyframes pay-modal-in {
+  from {
+    transform: scale(0.94);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pay-check-pop {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pay-modal__sheet,
+  .pay-success__check {
+    animation: none;
+  }
 }
 
 /* ── Toast ──────────────────────────────── */

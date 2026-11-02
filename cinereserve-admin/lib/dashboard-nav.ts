@@ -7,7 +7,6 @@ import {
   Film,
   ImagePlus,
   LayoutDashboard,
-  LayoutGrid,
   LineChart,
   MonitorPlay,
   Palette,
@@ -20,7 +19,6 @@ import {
   SquarePlus,
   Store,
   Ticket,
-  TriangleAlert,
   Tv,
   UserCog,
   Users,
@@ -29,6 +27,7 @@ import {
 
 export type ModuleId =
   | "dashboard"
+  | "business"
   | "movies"
   | "screens"
   | "seats"
@@ -46,6 +45,7 @@ export type NavItem = { id: ModuleId; label: string; icon: Icon; href: string };
 
 export const HREF_BY_ID: Record<ModuleId, string> = {
   dashboard: "/dashboard",
+  business: "/dashboard/business",
   movies: "/dashboard/movies",
   screens: "/dashboard/screens",
   seats: "/dashboard/seats",
@@ -62,13 +62,16 @@ export const HREF_BY_ID: Record<ModuleId, string> = {
 export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: "Main",
-    items: [{ id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: HREF_BY_ID.dashboard }],
+    items: [
+      { id: "dashboard", label: "Overview", icon: LayoutDashboard, href: HREF_BY_ID.dashboard },
+      { id: "business", label: "Business Profile", icon: Store, href: HREF_BY_ID.business },
+    ],
   },
   {
     label: "Cinema Management",
     items: [
       { id: "movies", label: "Movies", icon: Film, href: HREF_BY_ID.movies },
-      { id: "screens", label: "Screens", icon: MonitorPlay, href: HREF_BY_ID.screens },
+      { id: "screens", label: "Rooms", icon: MonitorPlay, href: HREF_BY_ID.screens },
       { id: "seats", label: "Seats", icon: Armchair, href: HREF_BY_ID.seats },
       { id: "schedules", label: "Schedules", icon: CalendarDays, href: HREF_BY_ID.schedules },
     ],
@@ -91,58 +94,67 @@ export const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   },
 ];
 
-export const META: Record<ModuleId, { title: string; subtitle: string }> = {
+/** `action` is a header button beside the title, shown on the module's list page only. */
+export const META: Record<
+  ModuleId,
+  { title: string; subtitle: string; action?: { label: string; icon: Icon; href: string } }
+> = {
   dashboard: {
-    title: "Dashboard",
-    subtitle: "Overview of your cinema branch operations and reservations.",
+    title: "Overview",
+    subtitle: "Bookings, revenue and today's showings at your establishment.",
+  },
+  business: {
+    title: "Business Profile",
+    subtitle: "Your establishment's public profile, booking model and setup progress.",
   },
   movies: {
     title: "Movie Catalog",
     subtitle: "Manage active cinema titles, age classifications, and runtimes.",
+    action: { label: "Add Movie", icon: ImagePlus, href: "/dashboard/movies/new" },
   },
   screens: {
-    title: "Auditoriums & Screens",
-    subtitle: "Configure audio formats, screen capacities, and projection systems.",
+    title: "Rooms",
+    subtitle: "Your screening rooms: capacity, room prices and photos.",
   },
   seats: {
     title: "Seating Layouts",
-    subtitle: "Architect seat tiers, VIP loungers, and wheelchair companion spots.",
+    subtitle: "Lay out seats and benches for each room, with labels and prices.",
   },
   schedules: {
     title: "Showtimes & Scheduling",
-    subtitle: "Calendar timetable for screenings, intermissions, and cleaning slots.",
+    subtitle: "Showings per room, with the price customers pay.",
   },
   reservations: {
     title: "Ticket Reservations",
-    subtitle: "Track active, completed, and pending audience bookings.",
+    subtitle: "Track pending, confirmed and expired customer bookings.",
   },
   customers: {
     title: "Customer Directory",
-    subtitle: "Patron loyalty memberships, contact histories, and engagement data.",
+    subtitle: "Customers who have booked at your establishment.",
   },
   payments: {
     title: "Payment Transactions",
-    subtitle: "Real-time gateway settlements, refunds, and terminal transactions.",
+    subtitle: "Payments received for your bookings.",
   },
   tickets: {
     title: "Issued Tickets",
-    subtitle: "Barcodes, QR validation registers, and gate admissions.",
+    subtitle: "Tickets issued for confirmed bookings.",
   },
   reports: {
-    title: "Reports & Audits",
-    subtitle: "Branch box-office performance, concessions, and seat fill ratios.",
+    title: "Reports & Analytics",
+    subtitle: "Revenue, bookings and top movies by booking date.",
   },
   "ai-analytics": {
     title: "AI Yield & Analytics",
-    subtitle: "Dynamic demand models, automatic scheduling, and concession forecasting.",
+    subtitle: "Busiest days and hours, next week's demand forecast, and AI recommendations.",
   },
   settings: {
-    title: "Branch Settings",
-    subtitle: "System preferences, identity parameters, and security policies.",
+    title: "Account Settings",
+    subtitle: "Your profile, password and establishment contact details.",
   },
 };
 
-export type EmptyModuleId = Exclude<ModuleId, "dashboard" | "settings">;
+export type EmptyModuleId = Exclude<ModuleId, "dashboard" | "business" | "settings">;
 
 export const EMPTY_STATES: Record<
   EmptyModuleId,
@@ -161,14 +173,14 @@ export const EMPTY_STATES: Record<
   },
   screens: {
     icon: MonitorPlay,
-    title: "No Screens Yet",
-    description: "Create cinema screens before configuring seats and schedules.",
-    cta: { label: "Add Screen", icon: SquarePlus },
+    title: "No Rooms Yet",
+    description: "Create a room before configuring seats and schedules.",
+    cta: { label: "Add Room", icon: SquarePlus },
   },
   seats: {
     icon: Armchair,
     title: "No Seat Layout Available",
-    description: "Select or create a cinema screen before configuring its seat layout.",
+    description: "Select or create a room before configuring its seat layout.",
   },
   schedules: {
     icon: Clock,
@@ -204,9 +216,9 @@ export const EMPTY_STATES: Record<
   },
   "ai-analytics": {
     icon: Sparkles,
-    title: "AI Analytics Not Available Yet",
+    title: "Not Enough Bookings Yet",
     description:
-      "Demand predictions and AI insights will appear here after the core reservation system is completed.",
+      "Demand patterns, forecasts and AI recommendations appear here once shows with confirmed bookings have run.",
   },
 };
 
@@ -222,8 +234,7 @@ export const SETTINGS_CARDS: {
   {
     icon: Store,
     title: "Branch Profile",
-    description:
-      "Cinema address, contact points, operational hours, and auditorium physical constraints.",
+    description: "Establishment address and contact details. Hours, photos and booking model live in Business Profile.",
     cta: "Configure Branch",
     modal: "branch",
   },
@@ -254,40 +265,23 @@ export const DASHBOARD_STATS = [
   {
     icon: Wallet,
     label: "Today's Box Office",
-    value: "…",
-    hint: "Loading…",
     footLabel: "Payments today",
-    footValue: "…",
   },
   {
     icon: Tv,
     label: "Active Screenings",
-    value: "0",
-    hint: "Screens standby",
-    footLabel: "Auditoriums ready",
-    footValue: "4 Halls",
+    footLabel: "Rooms ready",
   },
   {
     icon: Armchair,
     label: "Hall Occupancy Rate",
-    value: "0%",
-    hint: "No active seats",
     footLabel: "Capacity total",
-    footValue: "520 Seats",
   },
   {
     icon: Ticket,
     label: "Reservations Issued",
-    value: "…",
-    hint: "Confirmed today",
     footLabel: "Pending reservations",
-    footValue: "…",
   },
-];
-
-export const DASHBOARD_SUBVIEWS = [
-  { label: "Overview", icon: LayoutGrid },
-  { label: "Alerts & Logs", icon: TriangleAlert },
 ];
 
 export const SETTINGS_ICON = Settings2;

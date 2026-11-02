@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
+use App\Models\Customer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -17,8 +17,7 @@ class CustomerProfileTest extends TestCase
 
     public function test_authenticated_customer_can_fetch_own_profile(): void
     {
-        $customer = User::factory()->create([
-            'role' => 'customer',
+        $customer = Customer::factory()->create([
             'status' => 'active',
             'name' => 'Alex Morgan',
             'email' => 'alex.morgan@example.com',
@@ -40,8 +39,7 @@ class CustomerProfileTest extends TestCase
 
     public function test_authenticated_customer_can_update_name_email_and_phone(): void
     {
-        $customer = User::factory()->create([
-            'role' => 'customer',
+        $customer = Customer::factory()->create([
             'status' => 'active',
             'email' => 'old@example.com',
             'phone' => '+63 912 345 6789',
@@ -58,7 +56,7 @@ class CustomerProfileTest extends TestCase
         $response->assertJsonPath('user.email', 'jordan.reyes@example.com');
         $response->assertJsonPath('user.phone', '+63 998 765 4321');
 
-        $this->assertDatabaseHas('users', [
+        $this->assertDatabaseHas('customers', [
             'id' => $customer->id,
             'name' => 'Jordan Reyes',
             'email' => 'jordan.reyes@example.com',
@@ -68,8 +66,8 @@ class CustomerProfileTest extends TestCase
 
     public function test_duplicate_email_belonging_to_another_user_returns_422(): void
     {
-        $customer = User::factory()->create(['role' => 'customer', 'status' => 'active']);
-        User::factory()->create(['email' => 'taken@example.com']);
+        $customer = Customer::factory()->create(['status' => 'active']);
+        Customer::factory()->create(['email' => 'taken@example.com']);
 
         $response = $this->actingAs($customer, 'sanctum')->patchJson('/api/customer/profile', [
             'name' => $customer->name,
@@ -83,8 +81,7 @@ class CustomerProfileTest extends TestCase
 
     public function test_customer_can_keep_existing_email_when_updating_profile(): void
     {
-        $customer = User::factory()->create([
-            'role' => 'customer',
+        $customer = Customer::factory()->create([
             'status' => 'active',
             'email' => 'keep.me@example.com',
         ]);

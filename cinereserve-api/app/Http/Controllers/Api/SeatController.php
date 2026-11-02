@@ -12,7 +12,9 @@ use Illuminate\Support\Facades\DB;
 
 class SeatController extends Controller
 {
-    private const SEAT_FIELDS = ['id', 'row_label', 'seat_number', 'seat_type', 'price_modifier', 'status'];
+    private const SEAT_FIELDS = ['id', 'row_label', 'seat_number', 'seat_type', 'capacity', 'price_modifier', 'status'];
+
+    private const SEAT_TYPES = 'regular,vip,bench';
 
     public function index(Request $request, string $screenId)
     {
@@ -51,11 +53,16 @@ class SeatController extends Controller
             return $this->screenNotFound();
         }
 
+        if ($modeError = $this->roomModeError($request)) {
+            return $modeError;
+        }
+
         $data = $request->validate([
             'seats' => ['required', 'array', 'min:1', 'max:2000'],
             'seats.*.row_label' => ['required', 'string', 'max:10'],
             'seats.*.seat_number' => ['required', 'integer', 'min:1'],
-            'seats.*.seat_type' => ['nullable', 'string', 'max:30'],
+            'seats.*.seat_type' => ['nullable', 'in:'.self::SEAT_TYPES],
+            'seats.*.capacity' => ['nullable', 'integer', 'min:1', 'max:20'],
             'seats.*.price_modifier' => ['nullable', 'numeric'],
         ]);
 
@@ -76,7 +83,8 @@ class SeatController extends Controller
             return response()->json(['message' => 'Seat layout already exists for this screen.'], 422);
         }
 
-        $total = count($seats);
+        // A bench counts as every person it seats.
+        $total = array_sum(array_map(fn (array $seat) => $this->capacityFor($seat), $seats));
         if ($total > $screen->capacity) {
             return response()->json([
                 'message' => sprintf('Generated seats (%d) exceed screen capacity (%d).', $total, $screen->capacity),
@@ -88,6 +96,7 @@ class SeatController extends Controller
             'row_label' => $seat['row_label'],
             'seat_number' => $seat['seat_number'],
             'seat_type' => $seat['seat_type'] ?? 'regular',
+            'capacity' => $this->capacityFor($seat),
             'price_modifier' => $seat['price_modifier'] ?? 0,
             'status' => 'active',
             'created_at' => now(),
@@ -101,6 +110,8 @@ class SeatController extends Controller
         } catch (UniqueConstraintViolationException) {
             return response()->json(['message' => 'Seat layout already exists for this screen.'], 422);
         }
+
+        $request->user()->branch->syncStatus();
 
         $created = Seat::where('screen_id', $screen->id)
             ->orderBy('row_label')
@@ -128,14 +139,21 @@ class SeatController extends Controller
             return $this->seatNotFound();
         }
 
+        if ($modeError = $this->roomModeError($request)) {
+            return $modeError;
+        }
+
         $data = $request->validate([
-            'seat_type' => ['required', 'in:regular,vip'],
+            'seat_type' => ['required', 'in:'.self::SEAT_TYPES],
+            'capacity' => ['nullable', 'integer', 'min:1', 'max:20'],
             'price_modifier' => ['required', 'numeric'],
             'status' => ['required', 'in:active,disabled'],
         ]);
+        $data['capacity'] = $this->capacityFor($data);
 
         $seat->fill($data);
         $seat->save();
+        $request->user()->branch->syncStatus();
 
         return response()->json(['seat' => $seat->only(self::SEAT_FIELDS)]);
     }
@@ -145,7 +163,7 @@ class SeatController extends Controller
      */
     private function ownBranchId(Request $request)
     {
-        $branchId = $request->user()->branch_id;
+        $branchId = $request->user()->current_branch_id;
 
         if (! $branchId) {
             return response()->json([
@@ -154,6 +172,22 @@ class SeatController extends Controller
         }
 
         return $branchId;
+    }
+
+    /** Only benches seat more than one person. */
+    private function capacityFor(array $seat): int
+    {
+        return ($seat['seat_type'] ?? 'regular') === 'bench' ? (int) ($seat['capacity'] ?? 1) : 1;
+    }
+
+    /** By-Room establishments rent whole rooms and keep no seat layout. */
+    private function roomModeError(Request $request): ?JsonResponse
+    {
+        if ($request->user()->branch?->booking_mode === 'room') {
+            return response()->json(['message' => 'Seat layouts are only used by establishments that book by seat.'], 422);
+        }
+
+        return null;
     }
 
     private function ownScreen(int $branchId, string $screenId): ?Screen

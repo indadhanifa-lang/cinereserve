@@ -22,7 +22,7 @@ class AdminPaymentController extends Controller
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
-        $branchId = $user->branch_id;
+        $branchId = $user->current_branch_id;
         if (! $branchId) {
             return response()->json([
                 'message' => 'No branch is assigned to your account.',
@@ -32,8 +32,8 @@ class AdminPaymentController extends Controller
         $payments = Payment::query()
             ->whereHas('reservation.schedule', fn ($query) => $query->where('branch_id', $branchId))
             ->with([
-                'reservation:id,user_id,schedule_id,reservation_code,status',
-                'reservation.user:id,name,email',
+                'reservation:id,customer_id,schedule_id,reservation_code,status',
+                'reservation.customer:id,name,email',
                 'reservation.schedule:id,movie_id,branch_id,screen_id,show_date,start_time,end_time',
                 'reservation.schedule.movie:id,title',
                 'reservation.schedule.screen:id,name',
@@ -74,10 +74,10 @@ class AdminPaymentController extends Controller
                 'reservation_code' => $reservation->reservation_code,
                 'status' => $reservation->status,
             ] : null,
-            'customer' => $reservation?->user ? [
-                'id' => $reservation->user->id,
-                'name' => $reservation->user->name,
-                'email' => $reservation->user->email,
+            'customer' => $reservation?->customer ? [
+                'id' => $reservation->customer->id,
+                'name' => $reservation->customer->name,
+                'email' => $reservation->customer->email,
             ] : null,
             'movie' => $schedule?->movie ? [
                 'id' => $schedule->movie->id,

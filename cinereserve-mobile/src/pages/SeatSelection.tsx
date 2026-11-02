@@ -26,6 +26,7 @@ interface SeatDto {
   row_label: string;
   seat_number: number;
   seat_type: string;
+  capacity?: number;
   price_modifier: string;
   availability: Availability;
 }
@@ -441,10 +442,10 @@ const SeatSelection: React.FC = () => {
                             <button
                               type="button"
                               key={seat.id}
-                              className={`seat${stateClass}${premiumClass}`}
+                              className={`seat${stateClass}${premiumClass}${seat.seat_type === "bench" ? " seat--bench" : ""}`}
                               disabled={seat.availability !== "available"}
                               aria-pressed={isSelected}
-                              aria-label={`Seat ${seat.label}${
+                              aria-label={`${seat.seat_type === "bench" ? `Bench for ${seat.capacity ?? 1}` : "Seat"} ${seat.label}${
                                 modifier !== 0
                                   ? `, ${modifier > 0 ? "premium" : "discounted"}`
                                   : ""
@@ -459,7 +460,11 @@ const SeatSelection: React.FC = () => {
                               }`}
                               onClick={() => toggleSeat(seat)}
                             >
-                              <span className="seat__label">{seat.label}</span>
+                              <span className="seat__label">
+                                {seat.label}
+                                {seat.seat_type === "bench" && ` ×${seat.capacity ?? 1}`}
+                              </span>
+
                               {modifier !== 0 && (
                                 <span className="seat__premium-tag">
                                   {formatModifierTag(modifier)}
@@ -747,7 +752,7 @@ const SeatSelection: React.FC = () => {
                 </div>
 
                 <p className="seat-success__hold">
-                  Seat hold expires in approximately 10 minutes.
+                  Pay within 24 hours, or before the show starts, or this booking is cancelled.
                 </p>
               </div>
 

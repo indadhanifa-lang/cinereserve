@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\Customer;
 use App\Models\Movie;
-use App\Models\Organization;
 use App\Models\Reservation;
 use App\Models\Schedule;
 use App\Models\Screen;
@@ -28,9 +28,7 @@ class CustomerPaymentFlowTest extends TestCase
     {
         parent::setUp();
 
-        $organization = Organization::create(['name' => 'Cinema Co', 'slug' => 'cinema-co']);
         $this->branch = Branch::create([
-            'organization_id' => $organization->id,
             'name' => 'Central',
             'slug' => 'central',
             'address' => 'Main Street',
@@ -46,7 +44,8 @@ class CustomerPaymentFlowTest extends TestCase
             'movie_id' => $movie->id,
             'branch_id' => $this->branch->id,
             'screen_id' => $screen->id,
-            'show_date' => now('Asia/Manila')->addDay()->toDateString(),
+            // Far enough out that the 24-hour hold ends before the show.
+            'show_date' => now('Asia/Manila')->addDays(3)->toDateString(),
             'start_time' => '18:00:00',
             'end_time' => '20:00:00',
             'ticket_price' => '250.00',
@@ -69,8 +68,8 @@ class CustomerPaymentFlowTest extends TestCase
         $summary->assertOk();
         // Compared numerically: SQLite drops the ".00" that PostgreSQL's numeric(10,2) keeps.
         $this->assertEquals(550, (float) $summary->json('reservation.total_amount'));
-        // 10-minute hold, counted server-side.
-        $this->assertEqualsWithDelta(600, $summary->json('reservation.expires_in_seconds'), 5);
+        // 24-hour hold, counted server-side.
+        $this->assertEqualsWithDelta(86400, $summary->json('reservation.expires_in_seconds'), 5);
 
         $response = $this->actingAs($customer, 'sanctum')
             ->postJson("/api/customer/reservations/{$reservationId}/pay", ['payment_method' => 'mock']);
@@ -128,7 +127,7 @@ class CustomerPaymentFlowTest extends TestCase
         $customer = $this->customer();
         $reservationId = $this->reserve($customer);
 
-        $this->travel(11)->minutes();
+        $this->travel(25)->hours();
 
         $this->actingAs($customer, 'sanctum')
             ->postJson("/api/customer/reservations/{$reservationId}/pay", ['payment_method' => 'mock'])
@@ -144,7 +143,7 @@ class CustomerPaymentFlowTest extends TestCase
         $customer = $this->customer();
         $lapsedId = $this->reserve($customer);
 
-        $this->travel(11)->minutes();
+        $this->travel(25)->hours();
         $liveId = $this->reserve($this->customer());
 
         $this->artisan('reservations:expire')->assertSuccessful();
@@ -161,9 +160,9 @@ class CustomerPaymentFlowTest extends TestCase
     public function test_admin_reservations_shows_lapsed_holds_as_expired_without_the_scheduler(): void
     {
         $reservationId = $this->reserve($this->customer());
-        $this->travel(11)->minutes();
+        $this->travel(25)->hours();
 
-        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'branch_id' => $this->branch->id]);
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'current_branch_id' => $this->branch->id]);
 
         $this->actingAs($admin, 'sanctum')->getJson('/api/admin/reservations')
             ->assertOk()
@@ -179,7 +178,7 @@ class CustomerPaymentFlowTest extends TestCase
             ->postJson("/api/customer/reservations/{$reservationId}/pay", ['payment_method' => 'mock'])
             ->assertCreated();
 
-        $this->travel(11)->minutes();
+        $this->travel(25)->hours();
         $this->artisan('reservations:expire')->assertSuccessful();
 
         $this->assertSame('confirmed', Reservation::find($reservationId)->status);
@@ -232,32 +231,46 @@ class CustomerPaymentFlowTest extends TestCase
             ->postJson("/api/customer/reservations/{$reservationId}/pay", ['payment_method' => 'mock'])
             ->assertCreated();
 
-        $ownAdmin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'branch_id' => $this->branch->id]);
+        $ownAdmin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'current_branch_id' => $this->branch->id]);
         $this->actingAs($ownAdmin, 'sanctum')->getJson('/api/admin/payments')
             ->assertOk()
             ->assertJsonCount(1, 'payments')
             ->assertJsonPath('payments.0.status', 'paid');
 
-        $otherOrganization = Organization::create(['name' => 'Other Co', 'slug' => 'other-co']);
         $otherBranch = Branch::create([
-            'organization_id' => $otherOrganization->id,
             'name' => 'Uptown',
             'slug' => 'uptown',
             'address' => 'Uptown Avenue',
             'city' => 'Cagayan de Oro',
         ]);
-        $otherAdmin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'branch_id' => $otherBranch->id]);
+        $otherAdmin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'current_branch_id' => $otherBranch->id]);
         $this->actingAs($otherAdmin, 'sanctum')->getJson('/api/admin/payments')
             ->assertOk()
             ->assertJsonCount(0, 'payments');
     }
 
-    private function customer(): User
+    private function customer(): Customer
     {
-        return User::factory()->create(['role' => 'customer', 'status' => 'active']);
+        return Customer::factory()->create(['status' => 'active']);
     }
 
-    private function reserve(User $customer): int
+    public function test_hold_never_runs_past_the_show_start(): void
+    {
+        $this->schedule->update([
+            'show_date' => now('Asia/Manila')->addHours(2)->toDateString(),
+            'start_time' => now('Asia/Manila')->addHours(2)->format('H:i:00'),
+        ]);
+        $customer = $this->customer();
+        $reservationId = $this->reserve($customer);
+
+        $seconds = $this->actingAs($customer, 'sanctum')
+            ->getJson("/api/customer/reservations/{$reservationId}/payment")
+            ->json('reservation.expires_in_seconds');
+
+        $this->assertEqualsWithDelta(7200, $seconds, 70);
+    }
+
+    private function reserve(Customer $customer): int
     {
         $response = $this->actingAs($customer, 'sanctum')->postJson('/api/customer/reservations', [
             'schedule_id' => $this->schedule->id,

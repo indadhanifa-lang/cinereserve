@@ -105,11 +105,11 @@ class AdminNotificationController extends Controller
             abort(response()->json(['message' => 'Forbidden.'], 403));
         }
 
-        if (! $user->branch_id) {
+        if (! $user->current_branch_id) {
             abort(response()->json(['message' => 'No branch is assigned to your account.'], 404));
         }
 
-        return (int) $user->branch_id;
+        return (int) $user->current_branch_id;
     }
 
     /**

@@ -3,16 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Customer;
 use App\Models\Reservation;
-use App\Models\User;
 use Illuminate\Http\Request;
 
 class AdminCustomerController extends Controller
 {
     /**
-     * Customers of the authenticated admin's branch only. Customers normally
-     * have users.branch_id = null, so directory membership is derived purely
-     * from customer -> reservations -> schedule -> branch_id. The branch is
+     * Customers of the authenticated admin's branch only. Directory membership is
+     * derived from customer -> reservations -> schedule -> branch_id. The branch is
      * always taken from the admin account; no branch identifier is ever
      * accepted from the client.
      */
@@ -24,15 +23,14 @@ class AdminCustomerController extends Controller
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
-        $branchId = $user->branch_id;
+        $branchId = $user->current_branch_id;
         if (! $branchId) {
             return response()->json([
                 'message' => 'No branch is assigned to your account.',
             ], 404);
         }
 
-        $customers = User::query()
-            ->where('role', 'customer')
+        $customers = Customer::query()
             ->whereHas('reservations', fn ($query) => $query->whereHas(
                 'schedule',
                 fn ($scheduleQuery) => $scheduleQuery->where('branch_id', $branchId)
@@ -49,7 +47,7 @@ class AdminCustomerController extends Controller
             ])
             ->orderBy('name')
             ->get()
-            ->map(fn (User $customer) => $this->customerPayload($customer));
+            ->map(fn (Customer $customer) => $this->customerPayload($customer));
 
         return response()->json(['customers' => $customers]);
     }
@@ -62,7 +60,7 @@ class AdminCustomerController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function customerPayload(User $customer): array
+    private function customerPayload(Customer $customer): array
     {
         /** @var iterable<int, Reservation> $branchReservations */
         $branchReservations = $customer->reservations;

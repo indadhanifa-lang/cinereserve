@@ -876,3 +876,8 @@
   line-height: 16px;
   color: var(--muted-strong);
 }
+
+/* Bench: one bookable unit that seats several people. */
+.seat--bench {
+  width: 84px;
+}

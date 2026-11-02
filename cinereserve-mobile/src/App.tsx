@@ -14,6 +14,9 @@ import PersonalInformation from './pages/PersonalInformation';
 import Profile from './pages/Profile';
 import Register from './pages/Register';
 import SeatSelection from './pages/SeatSelection';
+import RoomBooking from './pages/RoomBooking';
+import Cinemas from './pages/Cinemas';
+import CinemaDetail from './pages/CinemaDetail';
 import Tickets from './pages/Tickets';
 import Welcome from './pages/Welcome';
 import ProtectedRoute from './lib/ProtectedRoute';
@@ -168,6 +171,10 @@ const App: React.FC = () => (
         <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
         <Route path="/movies" element={<ProtectedRoute><Movies /></ProtectedRoute>} />
         <Route path="/booking/seats" element={<ProtectedRoute><SeatSelection /></ProtectedRoute>} />
+        <Route path="/booking/room" element={<ProtectedRoute><RoomBooking /></ProtectedRoute>} />
+        <Route path="/cinemas" element={<ProtectedRoute><Cinemas /></ProtectedRoute>} />
+        <Route path="/cinema" element={<ProtectedRoute><CinemaDetail /></ProtectedRoute>} />
+
         <Route path="/booking/payment" element={<ProtectedRoute><Payment /></ProtectedRoute>} />
         <Route path="/tickets" element={<ProtectedRoute><Tickets /></ProtectedRoute>} />
         <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />

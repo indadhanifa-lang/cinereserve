@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
+use App\Models\Customer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -41,7 +41,7 @@ class CustomerAvatarTest extends TestCase
         $avatarUrl = $response->json('user.avatar_url');
         $this->assertMatchesRegularExpression('#^/storage/avatars/[0-9a-f-]+\.png$#', $avatarUrl);
         Storage::disk('public')->assertExists('avatars/'.basename($avatarUrl));
-        $this->assertDatabaseHas('users', [
+        $this->assertDatabaseHas('customers', [
             'id' => $customer->id,
             'avatar_url' => $avatarUrl,
         ]);
@@ -89,7 +89,7 @@ class CustomerAvatarTest extends TestCase
 
         $response = $this->actingAs($customer, 'sanctum')->post('/api/customer/avatar', [
             'avatar' => $this->makeUpload(base64_decode(self::PNG_BASE64), 'avatar.png', 'image/png'),
-            'user_id' => $otherCustomer->id,
+            'customer_id' => $otherCustomer->id,
         ], ['Accept' => 'application/json']);
 
         $response->assertOk();
@@ -157,10 +157,9 @@ class CustomerAvatarTest extends TestCase
             ->assertJsonPath('user.avatar_url', null);
     }
 
-    private function createCustomer(): User
+    private function createCustomer(): Customer
     {
-        return User::factory()->create([
-            'role' => 'customer',
+        return Customer::factory()->create([
             'status' => 'active',
         ]);
     }

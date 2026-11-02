@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Tv } from "lucide-react";
+import { LOADING } from "@/components/dashboard/loading-value";
 
 type Screenings = {
   active_screenings: number;
@@ -31,7 +32,7 @@ export function ScreeningsStat() {
     ? "—"
     : screenings
       ? String(screenings.active_screenings)
-      : "…";
+      : LOADING;
   const hint = failed
     ? "Unavailable"
     : screenings
@@ -43,12 +44,12 @@ export function ScreeningsStat() {
     ? "—"
     : screenings
       ? `${screenings.standby_screens} screen${screenings.standby_screens === 1 ? "" : "s"} standby`
-      : "…";
+      : LOADING;
   const footValue = failed
     ? "—"
     : screenings
       ? `${screenings.total_halls} Hall${screenings.total_halls === 1 ? "" : "s"}`
-      : "…";
+      : LOADING;
 
   return (
     <div className="flex flex-col justify-between rounded-xl border border-border/30 bg-card p-4 shadow-sm">

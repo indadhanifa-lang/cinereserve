@@ -3,26 +3,44 @@ import {
   IonContent,
   IonIcon,
   IonPage,
-  IonSpinner,
   useIonRouter,
   useIonViewWillEnter,
 } from '@ionic/react';
 import {
   alertCircleOutline,
+  chevronForwardOutline,
   closeOutline,
   filmOutline,
   homeOutline,
-  notificationsOutline,
   personCircleOutline,
   personOutline,
   receiptOutline,
   ticketOutline,
 } from 'ionicons/icons';
+import QRCode from 'qrcode';
 import { apiGetAuth, resolveStorageUrl } from '../lib/api';
 import { navigate } from '../lib/nav';
+import NotificationBell from '../components/NotificationBell';
 import './Tickets.css';
 
 type TicketSeat = { label: string };
+
+/** QR of the ticket code for the entrance scanner; it holds the same code shown below it. */
+function TicketQr({ code }: { code: string }) {
+  const [src, setSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    QRCode.toDataURL(code, { margin: 1, width: 360 })
+      .then((url) => active && setSrc(url))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [code]);
+
+  return src ? <img className="tickets-modal__qr" src={src} alt={`QR code for ticket ${code}`} /> : null;
+}
 
 type TicketItem = {
   id: number;
@@ -34,6 +52,7 @@ type TicketItem = {
   reservation: {
     id: number;
     reservation_code: string;
+    booking_type?: 'seat' | 'room';
     status: string;
     total_amount: string | null;
   } | null;
@@ -80,6 +99,18 @@ const formatDate = (showDate: string): string => {
     day: 'numeric',
     year: 'numeric',
   });
+};
+
+/** show_date → "Today" / "Tomorrow" / null, against the device's local date. */
+const relativeDay = (showDate: string): string | null => {
+  const [year, month, day] = showDate.split('-').map(Number);
+  const target = new Date(year, (month ?? 1) - 1, day ?? 1);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((target.getTime() - today.getTime()) / 86400000);
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Tomorrow';
+  return null;
 };
 
 /** 250 or "250.00" → "₱250.00" */
@@ -200,41 +231,69 @@ const Tickets: React.FC = () => {
 
   const renderTicketCard = (ticket: TicketItem) => {
     const schedule = ticket.schedule;
+    const posterSrc = resolveStorageUrl(ticket.movie?.poster_url);
+    const showBackdrop = posterSrc && !failedPosterIds.includes(ticket.id);
     const place = [ticket.branch?.name ?? 'Cinema', ticket.screen?.name ?? null]
       .filter(Boolean)
-      .join(' • ');
+      .join(' · ');
+    const isRoom = ticket.reservation?.booking_type === 'room';
+    const seatsText = isRoom
+      ? 'Whole room'
+      : ticket.seats.map((seat) => seat.label).join(', ') || '—';
+    const when = ticket.is_active && schedule ? relativeDay(schedule.show_date) : null;
 
     return (
       <button
         type="button"
         key={ticket.id}
-        className="tickets-card"
+        className={`tickets-pass${ticket.is_active ? '' : ' tickets-pass--past'}`}
         onClick={() => setSelectedTicket(ticket)}
       >
-        {renderPoster(ticket, 'tickets-card__poster')}
-        <div className="tickets-card__body">
-          <div className="tickets-card__top">
-            <h3 className="tickets-card__title">{ticket.movie?.title ?? 'Untitled movie'}</h3>
-            <span className={`tickets-card__status tickets-card__status--${ticket.status}`}>
-              {STATUS_LABELS[ticket.status] ?? ticket.status}
-            </span>
+        <div className="tickets-pass__head">
+          {showBackdrop && (
+            <img
+              className="tickets-pass__backdrop"
+              src={posterSrc}
+              alt=""
+              aria-hidden="true"
+              onError={() => markPosterFailed(ticket.id)}
+            />
+          )}
+          {renderPoster(ticket, 'tickets-pass__poster')}
+          <div className="tickets-pass__heading">
+            <div className="tickets-pass__tags">
+              <span className={`tickets-card__status tickets-card__status--${ticket.status}`}>
+                {STATUS_LABELS[ticket.status] ?? ticket.status}
+              </span>
+              {when && <span className="tickets-pass__when">{when}</span>}
+            </div>
+            <h3 className="tickets-pass__title">{ticket.movie?.title ?? 'Untitled movie'}</h3>
+            <p className="tickets-pass__place">{place}</p>
           </div>
-          <p className="tickets-card__code">{ticket.ticket_code}</p>
-          <p className="tickets-card__place">{place}</p>
-          {schedule && (
-            <>
-              <p className="tickets-card__date">{formatDate(schedule.show_date)}</p>
-              <p className="tickets-card__time">
-                {formatTime(schedule.start_time)} – {formatTime(schedule.end_time)}
-              </p>
-            </>
-          )}
-          {ticket.seats.length > 0 && (
-            <p className="tickets-card__seats">Seats: {ticket.seats.map((seat) => seat.label).join(', ')}</p>
-          )}
-          {ticket.reservation && (
-            <p className="tickets-card__reservation">Reservation: {ticket.reservation.reservation_code}</p>
-          )}
+        </div>
+
+        <div className="tickets-pass__details">
+          <div className="tickets-pass__field">
+            <span>Date</span>
+            <strong>{schedule ? formatDate(schedule.show_date) : '—'}</strong>
+          </div>
+          <div className="tickets-pass__field">
+            <span>Time</span>
+            <strong>{schedule ? formatTime(schedule.start_time) : '—'}</strong>
+            {schedule && <small>until {formatTime(schedule.end_time)}</small>}
+          </div>
+          <div className="tickets-pass__field">
+            <span>{isRoom ? 'Booking' : 'Seats'}</span>
+            <strong>{seatsText}</strong>
+          </div>
+        </div>
+
+        <div className="tickets-pass__foot">
+          <span className="tickets-pass__code">{ticket.ticket_code}</span>
+          <span className="tickets-pass__view">
+            View pass
+            <IonIcon icon={chevronForwardOutline} />
+          </span>
         </div>
       </button>
     );
@@ -276,7 +335,7 @@ const Tickets: React.FC = () => {
       </div>
       <h2 className="tickets-past-title">No Past Passes</h2>
       <p className="tickets-past-text">
-        Your previous movie tickets will appear here after your screenings.
+        Once a showing ends, its ticket moves here so you can look back on what you've watched.
       </p>
     </div>
   );
@@ -291,9 +350,7 @@ const Tickets: React.FC = () => {
             <img src="/logo.png" alt="CineReserve AI" className="tickets-header__logo" />
           </div>
           <div className="tickets-header__actions">
-            <button type="button" className="icon-button" aria-label="Notifications">
-              <IonIcon icon={notificationsOutline} />
-            </button>
+            <NotificationBell />
             <div className="tickets-header__avatar" aria-hidden="true">
               {headerAvatarUrl && headerAvatarUrl !== failedHeaderAvatarUrl ? (
                 <img
@@ -311,14 +368,9 @@ const Tickets: React.FC = () => {
         <IonContent scrollY className="tickets-content">
           <div className="tickets-body">
             <div className="tickets-title-section">
-              <div className="tickets-title-row">
-                <div>
-                  <h1 className="tickets-title">My Tickets</h1>
-                  <p className="tickets-subtitle">View your active and previous cinema tickets.</p>
-                </div>
-                <div className="tickets-title-icon">
-                  <IonIcon icon={ticketOutline} />
-                </div>
+              <div>
+                <h1 className="tickets-title">My tickets</h1>
+                <p className="tickets-subtitle">Tap a ticket to show its pass at the entrance.</p>
               </div>
 
               <div className="tickets-segment">
@@ -342,8 +394,9 @@ const Tickets: React.FC = () => {
             </div>
 
             {loading ? (
-              <div className="tickets-loading">
-                <IonSpinner name="crescent" />
+              <div className="tickets-list" aria-busy="true" aria-label="Loading tickets">
+                <div className="tickets-skeleton" />
+                <div className="tickets-skeleton" />
               </div>
             ) : visibleTickets.length > 0 ? (
               <div className="tickets-list">{visibleTickets.map(renderTicketCard)}</div>
@@ -363,17 +416,8 @@ const Tickets: React.FC = () => {
                   <span className="tickets-info__dot" />
                 </div>
                 <p className="tickets-info__text">
-                  Your movie tickets, seats, and showtime details are available here after booking.
+                  Arrive at least 15 minutes early. Tickets are non-refundable.
                 </p>
-              </div>
-            </div>
-
-            <div className="tickets-features">
-              <div className="tickets-feature">
-                <div className="tickets-feature__icon">
-                  <IonIcon icon={notificationsOutline} />
-                </div>
-                <span className="tickets-feature__label">Showtime Reminders</span>
               </div>
             </div>
           </div>
@@ -402,88 +446,65 @@ const Tickets: React.FC = () => {
               </div>
 
               <div className="tickets-modal__scroll">
-                <div className="tickets-modal__section">
-                  <span className="tickets-modal__section-label">Ticket</span>
-                  <div className="tickets-modal__row">
-                    <span>Ticket Code</span>
-                    <strong>{selectedTicket.ticket_code}</strong>
-                  </div>
-                  <div className="tickets-modal__row">
-                    <span>Status</span>
-                    <strong className={`tickets-card__status tickets-card__status--${selectedTicket.status}`}>
+                <div className="tickets-modal__hero">
+                  {renderPoster(selectedTicket, 'tickets-modal__poster')}
+                  <div className="tickets-modal__hero-info">
+                    <span className={`tickets-card__status tickets-card__status--${selectedTicket.status}`}>
                       {STATUS_LABELS[selectedTicket.status] ?? selectedTicket.status}
+                    </span>
+                    <strong className="tickets-modal__movie-title">
+                      {selectedTicket.movie?.title ?? 'Untitled movie'}
                     </strong>
+                    <span className="tickets-modal__venue">
+                      {selectedTicket.branch?.name ?? '—'} · {selectedTicket.screen?.name ?? '—'}
+                    </span>
                   </div>
                 </div>
 
-                <div className="tickets-modal__section">
-                  <span className="tickets-modal__section-label">Movie</span>
-                  <div className="tickets-modal__movie">
-                    {renderPoster(selectedTicket, 'tickets-modal__poster')}
-                    <strong>{selectedTicket.movie?.title ?? 'Untitled movie'}</strong>
-                  </div>
-                </div>
-
-                <div className="tickets-modal__section">
-                  <span className="tickets-modal__section-label">Cinema</span>
-                  <div className="tickets-modal__row">
-                    <span>Branch</span>
-                    <strong>{selectedTicket.branch?.name ?? '—'}</strong>
-                  </div>
-                  <div className="tickets-modal__row">
-                    <span>Screen</span>
-                    <strong>{selectedTicket.screen?.name ?? '—'}</strong>
-                  </div>
-                </div>
-
-                <div className="tickets-modal__section">
-                  <span className="tickets-modal__section-label">Showtime</span>
-                  <div className="tickets-modal__row">
-                    <span>Show Date</span>
+                <div className="tickets-modal__grid">
+                  <div className="tickets-modal__field">
+                    <span>Date</span>
                     <strong>{selectedSchedule ? formatDate(selectedSchedule.show_date) : '—'}</strong>
                   </div>
-                  <div className="tickets-modal__row">
-                    <span>Start Time</span>
-                    <strong>{selectedSchedule ? formatTime(selectedSchedule.start_time) : '—'}</strong>
+                  <div className="tickets-modal__field">
+                    <span>Time</span>
+                    <strong>
+                      {selectedSchedule
+                        ? `${formatTime(selectedSchedule.start_time)} – ${formatTime(selectedSchedule.end_time)}`
+                        : '—'}
+                    </strong>
                   </div>
-                  <div className="tickets-modal__row">
-                    <span>End Time</span>
-                    <strong>{selectedSchedule ? formatTime(selectedSchedule.end_time) : '—'}</strong>
+                  <div className="tickets-modal__field">
+                    <span>{selectedTicket.reservation?.booking_type === 'room' ? 'Booking' : 'Seats'}</span>
+                    {selectedTicket.seats.length > 0 ? (
+                      <div className="tickets-modal__seats">
+                        {selectedTicket.seats.map((seat, index) => (
+                          <span className="tickets-modal__seat" key={`${seat.label}-${index}`}>
+                            {seat.label}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <strong>{selectedTicket.reservation?.booking_type === 'room' ? 'Whole room' : '—'}</strong>
+                    )}
                   </div>
-                </div>
-
-                <div className="tickets-modal__section">
-                  <span className="tickets-modal__section-label">Seats</span>
-                  {selectedTicket.seats.length > 0 ? (
-                    <div className="tickets-modal__seats">
-                      {selectedTicket.seats.map((seat, index) => (
-                        <span className="tickets-modal__seat" key={`${seat.label}-${index}`}>
-                          {seat.label}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="tickets-modal__row">
-                      <span>Seats</span>
-                      <strong>—</strong>
-                    </div>
-                  )}
-                </div>
-
-                <div className="tickets-modal__section">
-                  <span className="tickets-modal__section-label">Reservation</span>
-                  <div className="tickets-modal__row">
-                    <span>Reservation Code</span>
-                    <strong>{selectedTicket.reservation?.reservation_code ?? '—'}</strong>
-                  </div>
-                  <div className="tickets-modal__row">
-                    <span>Total Amount</span>
+                  <div className="tickets-modal__field">
+                    <span>Total</span>
                     <strong>
                       {selectedTicket.reservation?.total_amount
                         ? formatPrice(selectedTicket.reservation.total_amount)
                         : '—'}
                     </strong>
                   </div>
+                </div>
+
+                <div className="tickets-modal__code">
+                  <span className="tickets-modal__code-label">Show at entrance</span>
+                  {selectedTicket.status === 'valid' && <TicketQr code={selectedTicket.ticket_code} />}
+                  <strong className="tickets-modal__code-value">{selectedTicket.ticket_code}</strong>
+                  <span className="tickets-modal__code-sub">
+                    Reservation {selectedTicket.reservation?.reservation_code ?? '—'}
+                  </span>
                 </div>
               </div>
             </div>

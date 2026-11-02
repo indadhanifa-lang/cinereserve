@@ -54,6 +54,9 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    // Partner portal (cinereserve-admin) base URL, used in password reset links.
+    'admin_url' => env('ADMIN_APP_URL', 'http://localhost:3000'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

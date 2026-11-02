@@ -40,7 +40,7 @@ class CustomerHistoryController extends Controller
 
         /** @var Collection<int, Reservation> $reservations */
         $reservations = Reservation::query()
-            ->where('user_id', $user->id)
+            ->where('customer_id', $user->id)
             ->with([
                 'schedule:id,movie_id,branch_id,screen_id,show_date,start_time,end_time',
                 'schedule.movie:id,title,poster_url',
@@ -149,6 +149,7 @@ class CustomerHistoryController extends Controller
         return [
             'id' => $reservation->id,
             'reservation_code' => $reservation->reservation_code,
+            'booking_type' => $reservation->booking_type,
             'status' => $reservation->status,
             'subtotal' => (string) $reservation->subtotal,
             'discount_amount' => (string) $reservation->discount_amount,

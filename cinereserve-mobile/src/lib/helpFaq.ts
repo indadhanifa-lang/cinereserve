@@ -14,7 +14,7 @@ export const FAQS: Faq[] = [
   {
     question: "How do I book a ticket?",
     answer:
-      "1. Open Movies and tap a poster.\n2. Tap View Showtimes and pick a time.\n3. Choose your seats and tap Continue.\n4. Pay within the hold timer to get your ticket.",
+      "1. Tap a movie poster on Home or in Movies.\n2. Tap View Showtimes and pick a time.\n3. Choose your seats and tap Continue.\n4. Pay within the hold timer to get your ticket.\n\nMini cinema movies: tap the poster, then Book a Room (rent the whole room) or Book Seats (pick your own seats), depending on the cinema.",
     keywords: ["book", "reserve"],
     action: { label: "Browse Movies", path: "/movies" },
   },
@@ -41,7 +41,7 @@ export const FAQS: Faq[] = [
   {
     question: "How long are my seats held?",
     answer:
-      "Seats are held for 10 minutes after you continue to payment. The timer is shown on the Payment page — pay before it runs out or the seats are released.",
+      "Your seats or room are held for 24 hours after you book, or until the show starts if that is sooner. The timer is shown on the Payment page — pay before it runs out or the booking is cancelled.",
     keywords: ["hold", "held", "expire", "timer", "minute", "minuto"],
   },
   {

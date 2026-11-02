@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
-use App\Models\Organization;
 use App\Models\Screen;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -69,7 +68,7 @@ class ScreenControllerTest extends TestCase
 
     public function test_admin_without_a_branch_gets_a_404_on_store(): void
     {
-        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'branch_id' => null]);
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active', 'current_branch_id' => null]);
 
         $this->actingAs($admin, 'sanctum')
             ->postJson('/api/screens', ['name' => 'Screen 1', 'capacity' => 40])
@@ -177,7 +176,7 @@ class ScreenControllerTest extends TestCase
         return User::factory()->create([
             'role' => 'admin',
             'status' => 'active',
-            'branch_id' => $branch->id,
+            'current_branch_id' => $branch->id,
         ]);
     }
 
@@ -186,18 +185,14 @@ class ScreenControllerTest extends TestCase
      */
     private function twoBranches(): array
     {
-        $organization = Organization::create(['name' => 'Cinema Co', 'slug' => 'cinema-co']);
-
         return [
             Branch::create([
-                'organization_id' => $organization->id,
                 'name' => 'Central',
                 'slug' => 'central',
                 'address' => 'Main Street',
                 'city' => 'Cagayan de Oro',
             ]),
             Branch::create([
-                'organization_id' => $organization->id,
                 'name' => 'Uptown',
                 'slug' => 'uptown',
                 'address' => 'Uptown Avenue',

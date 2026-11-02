@@ -4,11 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AdminNotification;
+use App\Models\Customer;
 use App\Models\Reservation;
 use App\Models\ReservationSeat;
 use App\Models\Schedule;
+use App\Models\Screen;
 use App\Models\Seat;
-use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -20,7 +21,8 @@ class CustomerReservationController extends Controller
 {
     private const string CINEMA_TIMEZONE = 'Asia/Manila';
 
-    private const int HOLD_MINUTES = 10;
+    // Unpaid bookings are released (status expired) after a day.
+    private const int HOLD_MINUTES = 24 * 60;
 
     /**
      * Create a pending reservation for the authenticated customer.
@@ -40,28 +42,40 @@ class CustomerReservationController extends Controller
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
-        $validated = $request->validate([
+        $scheduleId = (int) $request->validate([
             'schedule_id' => ['required', 'integer'],
-            'seat_ids' => ['required', 'array', 'min:1', 'distinct'],
-            'seat_ids.*' => ['integer'],
-        ]);
-
-        $scheduleId = (int) $validated['schedule_id'];
-        $seatIds = array_map('intval', $validated['seat_ids']);
+        ])['schedule_id'];
 
         // Fast failure only — the transaction below repeats every check
         // while holding the locks and is the final authority.
         $schedule = Schedule::query()
-            ->with(['movie:id,title', 'branch:id,name', 'screen:id,name'])
+            ->with(['movie:id,title', 'branch:id,name,category,status', 'screen:id,name'])
             ->find($scheduleId);
 
         if ($schedule === null) {
             return response()->json(['message' => 'Showtime not found.'], 404);
         }
 
+        if ($schedule->branch?->status !== 'active') {
+            return response()->json(['message' => 'This cinema is not accepting bookings.'], 409);
+        }
+
         if (! $this->isBookable($schedule)) {
             return response()->json(['message' => 'This showtime is no longer available.'], 409);
         }
+
+        // Mini cinema slots are booked through CustomerBookingController,
+        // which also checks the room against overlapping bookings.
+        if ($schedule->branch->isMiniCinema()) {
+            return response()->json(['message' => 'Book this cinema from its page in the app.'], 422);
+        }
+
+        $validated = $request->validate([
+            'seat_ids' => ['required', 'array', 'min:1', 'distinct'],
+            'seat_ids.*' => ['integer'],
+        ]);
+
+        $seatIds = array_map('intval', $validated['seat_ids']);
 
         $initialSeats = Seat::query()
             ->whereIn('id', $seatIds)
@@ -105,7 +119,7 @@ class CustomerReservationController extends Controller
         }
 
         $reservations = Reservation::query()
-            ->where('user_id', $user->id)
+            ->where('customer_id', $user->id)
             ->where('status', 'pending')
             ->where(function ($query) {
                 $query->whereNull('expires_at')
@@ -125,6 +139,7 @@ class CustomerReservationController extends Controller
             'reservations' => $reservations->map(fn (Reservation $reservation) => [
                 'id' => $reservation->id,
                 'reservation_code' => $reservation->reservation_code,
+                'booking_type' => $reservation->booking_type,
                 'status' => $reservation->status,
                 'total_amount' => (string) $reservation->total_amount,
                 'reserved_at' => $reservation->reserved_at !== null
@@ -160,14 +175,14 @@ class CustomerReservationController extends Controller
      * Full write path, executed while the seat rows are locked. Returns an
      * error tuple (status + body) on any failure; the transaction then
      * rolls back, so no reservation, reservation_seat or admin
-     * notification row can remain. The authenticated User is passed for
+     * notification row can remain. The authenticated Customer is passed for
      * the customer name/id recorded in the admin notification — nothing
      * identity-related comes from the client.
      *
      * @param  array<int, int>  $seatIds
      * @return array<string, mixed>
      */
-    private function createReservation(User $user, int $scheduleId, array $seatIds): array
+    public function createReservation(Customer $user, int $scheduleId, array $seatIds): array
     {
         // A. Schedule recheck under lock: still exists, still active, and
         // the Manila cinema clock is still strictly before show start.
@@ -245,7 +260,7 @@ class CustomerReservationController extends Controller
 
         $now = now();
         $reservation = new Reservation;
-        $reservation->user_id = $user->id;
+        $reservation->customer_id = $user->id;
         $reservation->schedule_id = $schedule->id;
         $reservation->reservation_code = $this->generateReservationCode();
         $reservation->subtotal = $this->fromCents($subtotalCents);
@@ -253,7 +268,7 @@ class CustomerReservationController extends Controller
         $reservation->total_amount = $this->fromCents($subtotalCents);
         $reservation->status = 'pending';
         $reservation->reserved_at = $now;
-        $reservation->expires_at = $now->copy()->addMinutes(self::HOLD_MINUTES);
+        $reservation->expires_at = $this->holdExpiry($schedule, $now);
         $reservation->save();
 
         foreach ($pricedSeats as $priced) {
@@ -331,6 +346,98 @@ class CustomerReservationController extends Controller
     }
 
     /**
+     * Whole-room write path. Locking the schedule row serialises competing
+     * renters of the same showing, and any confirmed or live pending
+     * reservation on it means the room is taken. The schedule's price is
+     * the room price; guests past the room's capacity each add its
+     * extra-person fee.
+     *
+     * @return array<string, mixed>
+     */
+    public function createRoomReservation(Customer $user, int $scheduleId, ?int $guests = null): array
+    {
+        $schedule = Schedule::query()->lockForUpdate()->find($scheduleId);
+
+        if ($schedule === null || ! $this->isBookable($schedule)) {
+            return [
+                'status' => 409,
+                'body' => ['message' => 'This showtime is no longer available.'],
+            ];
+        }
+
+        if (Reservation::blockingSchedule($schedule->id)->exists()) {
+            return [
+                'status' => 409,
+                'body' => ['message' => 'This room is already booked for this showtime.'],
+            ];
+        }
+
+        $screen = Screen::find($schedule->screen_id);
+        $extraGuests = $guests !== null && $screen ? $screen->extraGuests($guests) : 0;
+        $totalCents = $this->toCents((string) $schedule->ticket_price)
+            + $extraGuests * $this->toCents((string) $screen?->extra_guest_fee);
+
+        $now = now();
+        $reservation = new Reservation;
+        $reservation->customer_id = $user->id;
+        $reservation->schedule_id = $schedule->id;
+        $reservation->booking_type = 'room';
+        $reservation->guests = $guests;
+        $reservation->reservation_code = $this->generateReservationCode();
+        $reservation->subtotal = $this->fromCents($totalCents);
+        $reservation->discount_amount = $this->fromCents(0);
+        $reservation->total_amount = $this->fromCents($totalCents);
+        $reservation->status = 'pending';
+        $reservation->reserved_at = $now;
+        $reservation->expires_at = $this->holdExpiry($schedule, $now);
+        $reservation->save();
+
+        $schedule->load(['movie:id,title', 'branch:id,name', 'screen:id,name']);
+
+        $notification = new AdminNotification;
+        $notification->branch_id = (int) $schedule->branch_id;
+        $notification->type = 'reservation_created';
+        $notification->title = 'New Room Booking';
+        $notification->message = $user->name.' booked '.$schedule->screen?->name.' for '.$schedule->movie?->title
+            .($guests !== null ? ' ('.$guests.' '.($guests === 1 ? 'person' : 'people').')' : '').'.';
+        $notification->data = [
+            'reservation_id' => $reservation->id,
+            'reservation_code' => $reservation->reservation_code,
+            'customer_id' => $user->id,
+            'customer_name' => $user->name,
+            'movie_title' => $schedule->movie?->title,
+            'branch_id' => (int) $schedule->branch_id,
+            'screen_name' => $schedule->screen?->name,
+            'show_date' => $schedule->show_date,
+            'start_time' => $schedule->start_time,
+            'booking_type' => 'room',
+            'total_amount' => (string) $reservation->total_amount,
+        ];
+        $notification->read_at = null;
+        $notification->save();
+
+        return [
+            'reservation' => [
+                'id' => $reservation->id,
+                'reservation_code' => $reservation->reservation_code,
+                'booking_type' => 'room',
+                'guests' => $reservation->guests,
+                'status' => $reservation->status,
+                'subtotal' => $reservation->subtotal,
+                'discount_amount' => $reservation->discount_amount,
+                'total_amount' => $reservation->total_amount,
+                'expires_at' => Carbon::parse($reservation->expires_at)->toIso8601String(),
+                'movie' => ['title' => $schedule->movie?->title],
+                'branch' => ['name' => $schedule->branch?->name],
+                'screen' => ['name' => $schedule->screen?->name],
+                'show_date' => $schedule->show_date,
+                'start_time' => $schedule->start_time,
+                'seats' => [],
+            ],
+        ];
+    }
+
+    /**
      * Bookable only while the schedule is active and the Manila cinema
      * clock is still strictly before showtime start (equal = closed).
      */
@@ -340,15 +447,28 @@ class CustomerReservationController extends Controller
             return false;
         }
 
-        $now = Carbon::now(self::CINEMA_TIMEZONE);
+        return Carbon::now(self::CINEMA_TIMEZONE)->lt($this->showStart($schedule));
+    }
 
-        $showStart = Carbon::createFromFormat(
+    private function showStart(Schedule $schedule): Carbon
+    {
+        return Carbon::createFromFormat(
             'Y-m-d H:i:s',
             $schedule->show_date.' '.$schedule->start_time,
             self::CINEMA_TIMEZONE
         );
+    }
 
-        return $now->lt($showStart);
+    /**
+     * An unpaid booking holds its seats or room for HOLD_MINUTES, but
+     * never past the show's start: nobody can pay for a show that began.
+     * Converted to the app timezone so the stored wall time is right.
+     */
+    private function holdExpiry(Schedule $schedule, Carbon $now): Carbon
+    {
+        return $now->copy()->addMinutes(self::HOLD_MINUTES)
+            ->min($this->showStart($schedule))
+            ->setTimezone(config('app.timezone'));
     }
 
     /**

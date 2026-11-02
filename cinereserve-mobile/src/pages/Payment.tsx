@@ -13,11 +13,13 @@ import {
   arrowBackOutline,
   cardOutline,
   checkmarkCircleOutline,
+  checkmarkOutline,
   closeOutline,
   filmOutline,
   timeOutline,
   walletOutline,
 } from "ionicons/icons";
+import MockGateway from "../components/MockGateway";
 import { apiGetAuth, apiPostAuth } from "../lib/api";
 import { navigate } from "../lib/nav";
 import "./Payment.css";
@@ -26,6 +28,7 @@ interface PaymentSummary {
   reservation: {
     id: number;
     reservation_code: string;
+    booking_type?: "seat" | "room";
     status: string;
     subtotal: string;
     discount_amount: string;
@@ -34,7 +37,7 @@ interface PaymentSummary {
     expires_in_seconds?: number | null;
     schedule_id: number | null;
     movie: { title: string | null };
-    branch: { name: string | null };
+    branch: { id?: number | null; name: string | null; category?: string | null };
     screen: { name: string | null };
     show_date: string | null;
     start_time: string | null;
@@ -111,10 +114,15 @@ const formatMethod = (value: string): string =>
   PAYMENT_METHODS.find((option) => option.value === value)?.label ??
   (value === "mock" ? "Mock Payment" : "Payment");
 
-/** 522000 ms → "8:42" */
+/** 522000 ms → "8:42"; 86399000 ms → "23:59:59" */
 const formatHoldRemaining = (ms: number): string => {
   const seconds = Math.ceil(ms / 1000);
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  const pad = (value: number) => String(value).padStart(2, "0");
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return hours > 0
+    ? `${hours}:${pad(minutes)}:${pad(seconds % 60)}`
+    : `${minutes}:${pad(seconds % 60)}`;
 };
 
 /** "250.00" → "₱250.00" — display only; totals always come from the backend. */
@@ -157,6 +165,7 @@ const Payment: React.FC = () => {
   // Closing the modal keeps `paid`, so the page stays in its paid state.
   const [successOpen, setSuccessOpen] = useState(false);
   const [method, setMethod] = useState<PaymentMethod>("gcash");
+  const [gatewayOpen, setGatewayOpen] = useState(false);
   // Hold deadline on the device clock, derived from the server's
   // seconds-remaining so a wrong phone clock can't shift the countdown.
   const [holdDeadline, setHoldDeadline] = useState<number | null>(null);
@@ -228,6 +237,7 @@ const Payment: React.FC = () => {
     // Re-entering must never resurrect a stale success modal.
     setPaid(null);
     setSuccessOpen(false);
+    setGatewayOpen(false);
     setHoldDeadline(null);
     setSummary(null);
     setSubmitting(false);
@@ -271,12 +281,13 @@ const Payment: React.FC = () => {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [successOpen]);
 
-  // Backend determines the amount — the button only echoes what the
-  // summary returned. Single in-flight request: submitting guard blocks
-  // double taps; the locked transaction + existing-paid check is the
-  // real source of truth.
-  const payNow = useCallback(async () => {
-    if (reservationId === null || submitting) return;
+  // Called by the mock gateway once the customer "authorizes". Backend
+  // determines the amount — the gateway only echoes what the summary
+  // returned. Single in-flight request: submitting guard blocks double
+  // taps; the locked transaction + existing-paid check is the real source
+  // of truth. Resolves false so the gateway can offer a retry.
+  const payNow = useCallback(async (): Promise<boolean> => {
+    if (reservationId === null || submitting) return false;
     setSubmitting(true);
     try {
       const response = await apiPostAuth<PayResponse>(
@@ -284,7 +295,9 @@ const Payment: React.FC = () => {
         { payment_method: method }
       );
       setPaid(response);
+      setGatewayOpen(false);
       setSuccessOpen(true);
+      return true;
     } catch (err) {
       const status = (err as { status?: number }).status;
       const message = getErrorMessage(err, "Please try again later.");
@@ -301,6 +314,7 @@ const Payment: React.FC = () => {
         // Unknown failure: keep the summary for a retry, never fake success.
         showToastMessage("Payment failed", message);
       }
+      return false;
     } finally {
       setSubmitting(false);
     }
@@ -312,10 +326,14 @@ const Payment: React.FC = () => {
   // never land on a "not payable" Payment screen.
   const leaveAfterPayment = (path: string) => navigate(ionRouter, path, true);
 
-  // Deep link back to the seat map when the schedule id is known; the
-  // schedule came from the backend summary, never from client input.
+  // Deep link back to where this was booked: a mini cinema's page, or the
+  // seat map of a cinema showtime. Ids come from the backend summary.
   const chooseSeatsAgain = () => {
-    const scheduleId = summary?.reservation.schedule_id;
+    const { schedule_id: scheduleId, branch } = summary?.reservation ?? {};
+    if (branch?.category === "mini_cinema" && branch.id) {
+      navigate(ionRouter, `/booking/room?branch=${branch.id}`);
+      return;
+    }
     navigate(ionRouter, scheduleId ? `/booking/seats?schedule=${scheduleId}` : "/movies");
   };
 
@@ -336,7 +354,7 @@ const Payment: React.FC = () => {
         <div className="pay-error__actions">
           {isExpired && (
             <button type="button" className="pay-error__retry" onClick={chooseSeatsAgain}>
-              Choose Seats Again
+              {summary?.reservation.branch.category === "mini_cinema" ? "Book Again" : "Choose Seats Again"}
             </button>
           )}
           {canRetry && (
@@ -395,72 +413,76 @@ const Payment: React.FC = () => {
                     role="timer"
                   >
                     <IonIcon icon={timeOutline} aria-hidden="true" />
-                    <span>Seats held for</span>
+                    <span>Pay within</span>
                     <strong>{formatHoldRemaining(holdRemainingMs)}</strong>
                   </div>
                 )}
 
-                <section className="pay-section">
-                  <span className="pay-section__label">Reservation</span>
-                  <div className="pay-section__code">{reservation.reservation_code}</div>
-                </section>
-
-                <section className="pay-section">
-                  <span className="pay-section__label">Movie</span>
-                  <div className="pay-section__movie">
-                    <IonIcon icon={filmOutline} className="pay-section__movie-icon" />
-                    <strong>{reservation.movie?.title ?? "Untitled movie"}</strong>
-                  </div>
-                  <div className="pay-info">
-                    <div className="pay-info__place">{place}</div>
-                    {reservation.show_date && (
-                      <div className="pay-info__date">{formatDate(reservation.show_date)}</div>
-                    )}
-                    {reservation.start_time && (
-                      <div className="pay-info__time">{formatTime(reservation.start_time)}</div>
-                    )}
-                  </div>
-                </section>
-
-                <section className="pay-section">
-                  <span className="pay-section__label">Seats</span>
-                  {reservation.seats.length > 0 ? (
-                    reservation.seats.map((seat, index) => (
-                      <div className="pay-row" key={`${seat.label}-${index}`}>
-                        <span>{seat.label}</span>
-                        <strong>{formatPrice(seat.price)}</strong>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="pay-row">
-                      <span>Seats</span>
-                      <strong>—</strong>
-                    </div>
-                  )}
-                </section>
-
-                <section className="pay-section">
-                  <span className="pay-section__label">Payment Summary</span>
-                  <div className="pay-row">
-                    <span>Subtotal</span>
-                    <strong>{formatPrice(reservation.subtotal)}</strong>
-                  </div>
-                  <div className="pay-row">
-                    <span>Discount</span>
-                    <strong>{formatPrice(reservation.discount_amount)}</strong>
-                  </div>
-                  <div className="pay-row pay-row--total">
-                    <span>Total</span>
-                    <strong>{formatPrice(reservation.total_amount)}</strong>
-                  </div>
-                </section>
-
-                <section className="pay-section">
-                  <div className="pay-section__heading">
-                    <span className="pay-section__label" id="pay-method-label">
-                      Payment Method
+                <section className="pay-order" aria-label="Order summary">
+                  <div className="pay-order__top">
+                    <span className="pay-order__icon" aria-hidden="true">
+                      <IonIcon icon={filmOutline} />
                     </span>
-                    <span className="pay-method__badge">Demo</span>
+                    <div className="pay-order__heading">
+                      <h2 className="pay-order__title">{reservation.movie?.title ?? "Untitled movie"}</h2>
+                      <p className="pay-order__place">{place}</p>
+                    </div>
+                  </div>
+
+                  <div className="pay-order__meta">
+                    <div>
+                      <span>Date</span>
+                      <strong>{reservation.show_date ? formatDate(reservation.show_date) : "—"}</strong>
+                    </div>
+                    <div>
+                      <span>Time</span>
+                      <strong>{reservation.start_time ? formatTime(reservation.start_time) : "—"}</strong>
+                    </div>
+                  </div>
+
+                  <div className="pay-order__lines">
+                    {reservation.booking_type === "room" ? (
+                      <div className="pay-row">
+                        <span>Whole room · {reservation.screen.name ?? "Room"}</span>
+                        <strong>{formatPrice(reservation.subtotal)}</strong>
+                      </div>
+                    ) : reservation.seats.length > 0 ? (
+                      reservation.seats.map((seat, index) => (
+                        <div className="pay-row" key={`${seat.label}-${index}`}>
+                          <span>Seat {seat.label}</span>
+                          <strong>{formatPrice(seat.price)}</strong>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="pay-row">
+                        <span>Seats</span>
+                        <strong>—</strong>
+                      </div>
+                    )}
+                    {Number(reservation.discount_amount) > 0 && (
+                      <div className="pay-row pay-row--discount">
+                        <span>Discount</span>
+                        <strong>−{formatPrice(reservation.discount_amount)}</strong>
+                      </div>
+                    )}
+                    <div className="pay-row pay-row--total">
+                      <span>Total</span>
+                      <strong>{formatPrice(reservation.total_amount)}</strong>
+                    </div>
+                  </div>
+
+                  <div className="pay-order__code">
+                    <span>Reservation</span>
+                    <strong>{reservation.reservation_code}</strong>
+                  </div>
+                </section>
+
+                <section className="pay-method-section">
+                  <div className="pay-section__heading">
+                    <h2 className="pay-heading" id="pay-method-label">
+                      Pay with
+                    </h2>
+                    <span className="pay-method__badge">Test mode</span>
                   </div>
                   <div className="pay-methods" role="radiogroup" aria-labelledby="pay-method-label">
                     {PAYMENT_METHODS.map((option) => {
@@ -475,60 +497,79 @@ const Payment: React.FC = () => {
                           disabled={submitting || paid !== null}
                           onClick={() => setMethod(option.value)}
                         >
-                          <span className="pay-method__dot" aria-hidden="true" />
-                          <IonIcon icon={option.icon} className="pay-method__icon" aria-hidden="true" />
+                          <span className="pay-method__icon" aria-hidden="true">
+                            <IonIcon icon={option.icon} />
+                          </span>
                           <span className="pay-method__body">
                             <strong>{option.label}</strong>
                             <span>{option.hint}</span>
                           </span>
+                          <span className="pay-method__dot" aria-hidden="true" />
                         </button>
                       );
                     })}
                   </div>
+                  <p className="pay-note">
+                    Unpaid bookings are cancelled automatically when the timer runs out. Payment
+                    opens a simulated checkout; nothing you enter leaves your phone.
+                  </p>
                 </section>
-
-                <div className="pay-footer">
-                  {paid ? (
-                    <>
-                      <button
-                        type="button"
-                        className="pay-footer__button pay-footer__button--paid"
-                        onClick={() => leaveAfterPayment("/tickets")}
-                      >
-                        <IonIcon icon={checkmarkCircleOutline} />
-                        Paid — View My Ticket
-                      </button>
-                      <p className="pay-footer__note">
-                        Ref {paid.payment.payment_reference} • Ticket {paid.ticket.ticket_code}
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        className={`pay-footer__button${submitting ? " pay-footer__button--busy" : ""}`}
-                        disabled={submitting}
-                        onClick={() => void payNow()}
-                      >
-                        {submitting ? (
-                          <span className="pay-footer__spinner">
-                            <IonSpinner name="crescent" />
-                            Processing…
-                          </span>
-                        ) : (
-                          `Pay ${formatPrice(reservation.total_amount)}`
-                        )}
-                      </button>
-                      <p className="pay-footer__note">
-                        Simulated payment — your card or wallet details are never collected.
-                      </p>
-                    </>
-                  )}
-                </div>
               </>
             ) : null}
           </div>
         </IonContent>
+
+        {reservation && !loading && !error && (
+          <footer className="pay-bar">
+            {paid ? (
+              <>
+                <button
+                  type="button"
+                  className="pay-bar__button pay-bar__button--paid"
+                  onClick={() => leaveAfterPayment("/tickets")}
+                >
+                  <IonIcon icon={checkmarkCircleOutline} />
+                  Paid — View my ticket
+                </button>
+                <p className="pay-bar__ref">
+                  Ref {paid.payment.payment_reference} · Ticket {paid.ticket.ticket_code}
+                </p>
+              </>
+            ) : (
+              <div className="pay-bar__row">
+                <div className="pay-bar__total">
+                  <span>Total</span>
+                  <strong>{formatPrice(reservation.total_amount)}</strong>
+                </div>
+                <button
+                  type="button"
+                  className="pay-bar__button"
+                  disabled={submitting}
+                  onClick={() => setGatewayOpen(true)}
+                >
+                  {submitting ? (
+                    <>
+                      <IonSpinner name="crescent" />
+                      Processing…
+                    </>
+                  ) : (
+                    "Pay now"
+                  )}
+                </button>
+              </div>
+            )}
+          </footer>
+        )}
+
+        {gatewayOpen && reservation && !paid && !error && (
+          <MockGateway
+            method={method}
+            amount={formatPrice(reservation.total_amount)}
+            reference={reservation.reservation_code}
+            onAuthorize={payNow}
+            onClose={() => setGatewayOpen(false)}
+          />
+        )}
 
         {paid && successOpen && (
           <div className="pay-modal">
@@ -537,87 +578,67 @@ const Payment: React.FC = () => {
               className="pay-modal__sheet"
               role="dialog"
               aria-modal="true"
-              aria-label="Payment successful"
+              aria-labelledby="pay-success-title"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="pay-modal__header">
-                <h2 className="pay-modal__title">Payment Successful</h2>
-                <button
-                  type="button"
-                  className="pay-modal__close"
-                  aria-label="Close"
-                  onClick={() => setSuccessOpen(false)}
-                >
-                  <IonIcon icon={closeOutline} />
-                </button>
+              <button
+                type="button"
+                className="pay-modal__close"
+                aria-label="Close"
+                onClick={() => setSuccessOpen(false)}
+              >
+                <IonIcon icon={closeOutline} />
+              </button>
+
+              <div className="pay-success__hero">
+                <span className="pay-success__check" aria-hidden="true">
+                  <IonIcon icon={checkmarkOutline} />
+                </span>
+                <h2 id="pay-success-title" className="pay-success__title">
+                  Payment successful
+                </h2>
+                <strong className="pay-success__amount">{formatPrice(paid.payment.amount)}</strong>
+                <span className="pay-success__method">Paid with {formatMethod(paid.payment.payment_method)}</span>
               </div>
 
-              <div className="pay-modal__scroll">
-                <div className="pay-modal__section">
-                  <span className="pay-modal__section-label">Payment</span>
-                  <div className="pay-modal__row">
-                    <span>Payment Reference</span>
-                    <strong>{paid.payment.payment_reference}</strong>
-                  </div>
-                </div>
-
-                <div className="pay-modal__section">
-                  <span className="pay-modal__section-label">Reservation</span>
-                  <div className="pay-modal__row">
-                    <span>Reservation Code</span>
-                    <strong>{paid.reservation.reservation_code}</strong>
-                  </div>
-                </div>
-
-                <div className="pay-modal__section">
-                  <span className="pay-modal__section-label">Ticket</span>
-                  <div className="pay-modal__row">
-                    <span>Ticket Code</span>
-                    <strong>{paid.ticket.ticket_code}</strong>
-                  </div>
-                </div>
-
-                <div className="pay-modal__section">
-                  <span className="pay-modal__section-label">Amount Paid</span>
-                  <div className="pay-modal__row">
-                    <span>{formatMethod(paid.payment.payment_method)}</span>
-                    <strong>{formatPrice(paid.payment.amount)}</strong>
-                  </div>
-                </div>
-
-                <div className="pay-modal__section">
-                  <span className="pay-modal__section-label">Reservation Status</span>
-                  <div className="pay-modal__row">
-                    <span>Status</span>
-                    <strong className="pay-success__status">{formatStatus(paid.reservation.status)}</strong>
-                  </div>
-                </div>
-
-                <div className="pay-modal__section">
-                  <span className="pay-modal__section-label">Ticket Status</span>
-                  <div className="pay-modal__row">
-                    <span>Status</span>
-                    <strong className="pay-success__status">{formatStatus(paid.ticket.status)}</strong>
-                  </div>
-                </div>
+              <div className="pay-success__ticket">
+                <span>Your ticket</span>
+                <strong>{paid.ticket.ticket_code}</strong>
+                <small>Show this code at the entrance</small>
               </div>
+
+              <dl className="pay-success__details">
+                <div>
+                  <dt>Reservation</dt>
+                  <dd>{paid.reservation.reservation_code}</dd>
+                </div>
+                <div>
+                  <dt>Payment ref</dt>
+                  <dd>{paid.payment.payment_reference}</dd>
+                </div>
+                <div>
+                  <dt>Status</dt>
+                  <dd className="pay-success__chips">
+                    <span>{formatStatus(paid.reservation.status)}</span>
+                    <span>Ticket {paid.ticket.status}</span>
+                  </dd>
+                </div>
+              </dl>
 
               <div className="pay-modal__actions">
                 <button
                   type="button"
                   className="pay-modal__confirm"
-                  aria-label="View my ticket"
                   onClick={() => leaveAfterPayment("/tickets")}
                 >
-                  View My Ticket
+                  View my ticket
                 </button>
                 <button
                   type="button"
                   className="pay-modal__secondary"
-                  aria-label="Back to home"
                   onClick={() => leaveAfterPayment("/home")}
                 >
-                  Back to Home
+                  Back to home
                 </button>
               </div>
             </div>

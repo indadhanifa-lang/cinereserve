@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Customer;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -22,7 +23,7 @@ class GenreControllerTest extends TestCase
 
     public function test_customer_cannot_create_genre(): void
     {
-        $customer = User::factory()->create(['role' => 'customer', 'status' => 'active']);
+        $customer = Customer::factory()->create(['status' => 'active']);
 
         $response = $this->actingAs($customer, 'sanctum')->postJson('/api/admin/genres', ['name' => 'Horror']);
 

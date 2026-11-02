@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Ticket } from "lucide-react";
+import { LOADING } from "@/components/dashboard/loading-value";
 
 type Reservations = {
   confirmed_reservations_today: number;
@@ -29,13 +30,13 @@ export function ReservationsStat() {
     ? "—"
     : reservations
       ? String(reservations.confirmed_reservations_today)
-      : "…";
+      : LOADING;
   const hint = failed ? "Unavailable" : reservations ? "Confirmed today" : "Loading…";
   const footValue = failed
     ? "—"
     : reservations
       ? String(reservations.pending_reservations_today)
-      : "…";
+      : LOADING;
 
   return (
     <div className="flex flex-col justify-between rounded-xl border border-border/30 bg-card p-4 shadow-sm">

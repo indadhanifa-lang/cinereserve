@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\Customer;
 use App\Models\Movie;
-use App\Models\Organization;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request as HttpRequest;
@@ -53,9 +53,7 @@ class CustomerAssistantTest extends TestCase
             'candidates' => [['content' => ['parts' => [['text' => 'Ok.']]]]],
         ])]);
 
-        $organization = Organization::create(['name' => 'Cinema Co', 'slug' => 'cinema-co']);
         $branch = Branch::create([
-            'organization_id' => $organization->id,
             'name' => 'Central',
             'slug' => 'central',
             'address' => 'Main Street',
@@ -124,8 +122,8 @@ class CustomerAssistantTest extends TestCase
         Http::assertNothingSent();
     }
 
-    private function customer(): User
+    private function customer(): Customer
     {
-        return User::factory()->create(['role' => 'customer', 'status' => 'active']);
+        return Customer::factory()->create(['status' => 'active']);
     }
 }

@@ -1,0 +1,230 @@
+/* Header bell badge (every tab header) */
+.notification-bell {
+  position: relative;
+}
+
+.notification-bell__badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border: 2px solid #131317;
+  border-radius: 999px;
+  background: #7c3aed;
+  color: #ede0ff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 13px;
+  text-align: center;
+}
+
+/* Dropdown under the bell. The headers are fixed with a backdrop blur, so it
+   is positioned against the bell wrapper rather than the viewport. */
+.notification-menu {
+  position: relative;
+}
+
+.notification-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  /* Lines its right edge up with the avatar beside the bell. */
+  right: -40px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  width: min(360px, calc(100vw - 24px));
+  max-height: min(70vh, 520px);
+  overflow: hidden;
+  border: 1px solid rgba(124, 58, 237, 0.35);
+  border-radius: 18px;
+  background: var(--surface-low);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+  color: var(--text);
+  transform-origin: top right;
+  animation: notification-dropdown-in 160ms ease-out;
+}
+
+@keyframes notification-dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notification-dropdown {
+    animation: none;
+  }
+}
+
+.notification-dropdown__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+  padding: 6px 8px 6px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.notification-dropdown__header strong {
+  font-family: 'Outfit', var(--ion-font-family);
+  font-size: 16px;
+}
+
+.notification-dropdown__actions {
+  display: flex;
+  align-items: center;
+}
+
+.notification-dropdown__actions > span {
+  padding: 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.notifications-clear {
+  color: var(--muted-strong);
+}
+
+.notification-dropdown__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.notifications-read-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.notifications-read-all ion-icon {
+  font-size: 17px;
+}
+
+.notifications-read-all:active {
+  background: rgba(124, 58, 237, 0.18);
+}
+
+.notifications-read-all:focus-visible {
+  outline: 2px solid var(--secondary);
+  outline-offset: 2px;
+}
+
+.notification-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 10px 8px 8px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 150ms ease-out;
+}
+
+.notification-item:active {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.notification-item:focus-visible {
+  outline: 2px solid var(--secondary);
+  outline-offset: 2px;
+}
+
+.notification-item--unread {
+  background: rgba(124, 58, 237, 0.1);
+}
+
+.notification-item__poster {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  aspect-ratio: 2 / 3;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--surface-high);
+  color: var(--muted);
+  font-size: 20px;
+}
+
+.notification-item__poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.notification-item__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.notification-item__body strong {
+  font-size: 13.5px;
+}
+
+.notification-item__body span {
+  color: var(--muted-strong);
+}
+
+.notification-item__body small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.notification-item__dot {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--primary);
+}
+
+.notifications-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 32px 16px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.notifications-empty ion-icon {
+  margin-bottom: 6px;
+  font-size: 40px;
+}
+
+.notifications-empty strong {
+  color: var(--text);
+  font-size: 16px;
+}
+
+.notifications-empty p {
+  margin: 0;
+  font-size: 13px;
+}

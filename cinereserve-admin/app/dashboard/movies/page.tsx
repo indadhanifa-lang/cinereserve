@@ -7,7 +7,7 @@ import { ImagePlus, LayoutGrid, List, Loader2, Pencil, Search, X } from "lucide-
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { StatusSwitch } from "@/components/dashboard/status-switch";
 import { EMPTY_STATES } from "@/lib/dashboard-nav";
-import { cn } from "@/lib/utils";
+import { cn, formatRuntime } from "@/lib/utils";
 import { useUrlSearch } from "@/lib/use-url-search";
 
 type Movie = {
@@ -155,10 +155,6 @@ export default function MoviesPage() {
     return [...set].sort();
   }, [movies]);
 
-  const activeCount = useMemo(
-    () => (movies ?? []).filter((m) => m.status === "active").length,
-    [movies]
-  );
 
   const visibleMovies = useMemo(() => {
     if (!movies) return [];
@@ -228,7 +224,7 @@ export default function MoviesPage() {
           <div className="flex min-w-0 flex-1 flex-col divide-y divide-border/20">
             <DetailRow label="Status" value={renderStatusSwitch(selected)} />
             <DetailRow label="Genres" value={selected.genres.join(", ") || "—"} />
-            <DetailRow label="Runtime" value={`${selected.duration_minutes} min`} />
+            <DetailRow label="Runtime" value={formatRuntime(selected.duration_minutes)} />
             <DetailRow label="Release Date" value={formatDate(selected.release_date)} />
             <DetailRow label="Age Rating" value={selected.age_rating ?? "—"} />
             <DetailRow label="Language" value={selected.language ?? "—"} />
@@ -283,20 +279,6 @@ export default function MoviesPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-          <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-          {activeCount} Active Title{activeCount === 1 ? "" : "s"}
-        </span>
-        <Link
-          href="/dashboard/movies/new"
-          className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          <ImagePlus className="h-4 w-4" />
-          Add Movie
-        </Link>
-      </div>
-
       <div className="flex flex-col gap-3 rounded-2xl border border-border/30 bg-card p-3 shadow-sm">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
@@ -436,7 +418,7 @@ export default function MoviesPage() {
                   {movie.genres.join(", ") || "—"}
                 </p>
                 <div className="mt-auto flex items-center justify-between pt-1.5 text-xs text-muted-foreground">
-                  <span>{movie.duration_minutes} min</span>
+                  <span>{formatRuntime(movie.duration_minutes)}</span>
                   <span>{formatDate(movie.release_date)}</span>
                 </div>
               </div>
@@ -485,7 +467,7 @@ export default function MoviesPage() {
                               {movie.age_rating}
                             </span>
                           )}
-                          <span>{movie.duration_minutes} min</span>
+                          <span>{formatRuntime(movie.duration_minutes)}</span>
                         </div>
                       </div>
                     </div>

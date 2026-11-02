@@ -34,11 +34,11 @@ class CustomerPaymentController extends Controller
 
         $reservation = Reservation::query()
             ->where('id', $reservationId)
-            ->where('user_id', $user->id)
+            ->where('customer_id', $user->id)
             ->with([
                 'schedule:id,movie_id,branch_id,screen_id,show_date,start_time',
                 'schedule.movie:id,title',
-                'schedule.branch:id,name',
+                'schedule.branch:id,name,category',
                 'schedule.screen:id,name',
                 'reservationSeats:id,reservation_id,seat_id,price',
                 'reservationSeats.seat:id,row_label,seat_number',
@@ -64,6 +64,7 @@ class CustomerPaymentController extends Controller
             'reservation' => [
                 'id' => $reservation->id,
                 'reservation_code' => $reservation->reservation_code,
+                'booking_type' => $reservation->booking_type,
                 'status' => $reservation->status,
                 'subtotal' => (string) $reservation->subtotal,
                 'discount_amount' => (string) $reservation->discount_amount,
@@ -78,9 +79,14 @@ class CustomerPaymentController extends Controller
                 // client never sends it back as trusted input.
                 'schedule_id' => $schedule?->id,
                 'movie' => ['title' => $schedule?->movie?->title],
-                'branch' => ['name' => $schedule?->branch?->name],
+                'branch' => [
+                    'id' => $schedule?->branch?->id,
+                    'name' => $schedule?->branch?->name,
+                    'category' => $schedule?->branch?->category,
+                ],
                 'screen' => ['name' => $schedule?->screen?->name],
                 'show_date' => $schedule?->show_date,
+
                 'start_time' => $schedule?->start_time,
                 'seats' => $reservation->reservationSeats
                     ->map(fn ($reservationSeat) => [
@@ -130,7 +136,7 @@ class CustomerPaymentController extends Controller
             // the same row.
             $reservation = Reservation::query()
                 ->where('id', $reservationId)
-                ->where('user_id', $userId)
+                ->where('customer_id', $userId)
                 ->lockForUpdate()
                 ->first();
 
@@ -198,7 +204,8 @@ class CustomerPaymentController extends Controller
             // 5. The reservation must still own its seats. Seat rows are
             // immutable in this version (no cancel/modify path exists), so
             // this is a defensive existence check only — no repair.
-            if ($reservation->reservationSeats()->count() === 0) {
+            // Whole-room bookings own the screen, not individual seats.
+            if ($reservation->booking_type !== 'room' && $reservation->reservationSeats()->count() === 0) {
                 return ['status' => 409, 'body' => ['message' => 'This reservation has no seats.']];
             }
 
@@ -253,7 +260,7 @@ class CustomerPaymentController extends Controller
             // produce a second notification. data holds metadata only:
             // no email, phone, qr_token or credentials.
             $reservation->load([
-                'user:id,name',
+                'customer:id,name',
                 'schedule:id,movie_id,branch_id,screen_id,show_date,start_time',
                 'schedule.movie:id,title',
                 'schedule.screen:id,name',
@@ -267,7 +274,8 @@ class CustomerPaymentController extends Controller
             $notification->data = [
                 'reservation_id' => $reservation->id,
                 'reservation_code' => $reservation->reservation_code,
-                'customer_name' => $reservation->user?->name,
+                'booking_type' => $reservation->booking_type,
+                'customer_name' => $reservation->customer?->name,
                 'movie_title' => $reservation->schedule?->movie?->title,
                 'branch_id' => (int) $reservation->schedule?->branch_id,
                 'payment_reference' => $payment->payment_reference,
@@ -347,6 +355,7 @@ class CustomerPaymentController extends Controller
             'reservation' => [
                 'id' => $reservation->id,
                 'reservation_code' => $reservation->reservation_code,
+                'booking_type' => $reservation->booking_type,
                 'status' => $reservation->status,
                 'total_amount' => (string) $reservation->total_amount,
             ],

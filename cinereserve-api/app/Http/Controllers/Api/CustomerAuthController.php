@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Models\Customer;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,7 +20,7 @@ class CustomerAuthController extends Controller
      *
      * @return array{id: int, name: string, email: string, phone: string|null, avatar_url: string|null, role: string}
      */
-    private function profilePayload(User $user): array
+    private function profilePayload(Customer $user): array
     {
         return $user->only(['id', 'name', 'email', 'phone', 'avatar_url', 'role']);
     }
@@ -29,18 +29,17 @@ class CustomerAuthController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:150'],
-            'email' => ['required', 'email', 'max:150', 'unique:users,email'],
+            'email' => ['required', 'email', 'max:150', 'unique:customers,email'],
             'phone' => ['required', 'string', 'max:30'],
             'password' => ['required', 'string', 'min:8'],
         ]);
 
         try {
-            $user = User::create([
+            $user = Customer::create([
                 'name' => $data['name'],
                 'email' => strtolower(trim($data['email'])),
                 'phone' => $data['phone'],
                 'password' => $data['password'],
-                'role' => 'customer',
             ]);
 
             return response()->json([
@@ -73,7 +72,7 @@ class CustomerAuthController extends Controller
 
         try {
             $email = strtolower(trim($credentials['email']));
-            $user = User::where('email', $email)->first();
+            $user = Customer::where('email', $email)->first();
 
             $passwordMatches = Hash::check(
                 $credentials['password'],
@@ -135,7 +134,7 @@ class CustomerAuthController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:150'],
-            'email' => ['required', 'email', 'max:150', 'unique:users,email,'.$user->id],
+            'email' => ['required', 'email', 'max:150', 'unique:customers,email,'.$user->id],
             'phone' => ['nullable', 'string', 'max:30'],
         ]);
 
