@@ -59,6 +59,19 @@ class CustomerNotificationTest extends TestCase
         $this->assertDatabaseHas('notifications', ['customer_id' => $other->id, 'read_at' => null]);
     }
 
+    public function test_staff_tokens_cannot_use_customer_notification_routes(): void
+    {
+        // Staff and customers live in different tables, so ids can match.
+        $admin = $this->admin('Koze');
+        $customer = Customer::factory()->create(['id' => $admin->id, 'status' => 'active']);
+        $this->addMovie($admin, 'Sinners');
+
+        $this->actingAs($admin, 'sanctum')->getJson('/api/customer/notifications')->assertForbidden();
+        $this->actingAs($admin, 'sanctum')->postJson('/api/customer/notifications/clear')->assertForbidden();
+
+        $this->assertDatabaseHas('notifications', ['customer_id' => $customer->id]);
+    }
+
     private function admin(string $branchName): User
     {
         $branch = Branch::create(['name' => $branchName, 'slug' => str($branchName)->slug(), 'address' => 'Main Street', 'city' => 'Cagayan de Oro']);

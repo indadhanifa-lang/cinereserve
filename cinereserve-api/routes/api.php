@@ -44,10 +44,10 @@ Route::post('/customer/avatar', [CustomerAuthController::class, 'updateAvatar'])
 Route::get('/customer/showtimes', [CustomerShowtimeController::class, 'index'])->middleware('auth:sanctum');
 // Throttled per user to stay inside the Gemini free-tier quota.
 Route::post('/customer/assistant', [CustomerAssistantController::class, 'chat'])->middleware(['auth:sanctum', 'throttle:20,1']);
-Route::get('/customer/notifications', [CustomerNotificationController::class, 'index'])->middleware('auth:sanctum');
-Route::post('/customer/notifications/seen', [CustomerNotificationController::class, 'seen'])->middleware('auth:sanctum');
-Route::post('/customer/notifications/clear', [CustomerNotificationController::class, 'clear'])->middleware('auth:sanctum');
-Route::patch('/customer/notifications/{id}/read', [CustomerNotificationController::class, 'read'])->whereNumber('id')->middleware('auth:sanctum');
+Route::get('/customer/notifications', [CustomerNotificationController::class, 'index'])->middleware(['auth:sanctum', 'role:customer']);
+Route::post('/customer/notifications/seen', [CustomerNotificationController::class, 'seen'])->middleware(['auth:sanctum', 'role:customer']);
+Route::post('/customer/notifications/clear', [CustomerNotificationController::class, 'clear'])->middleware(['auth:sanctum', 'role:customer']);
+Route::patch('/customer/notifications/{id}/read', [CustomerNotificationController::class, 'read'])->whereNumber('id')->middleware(['auth:sanctum', 'role:customer']);
 Route::get('/customer/tickets', [CustomerTicketController::class, 'index'])->middleware('auth:sanctum');
 Route::get('/customer/history', [CustomerHistoryController::class, 'index'])->middleware('auth:sanctum');
 Route::get('/customer/schedules/{scheduleId}/seats', [CustomerScheduleSeatController::class, 'show'])->middleware('auth:sanctum');
