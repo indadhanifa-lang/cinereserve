@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { GlobalSearch } from "@/components/dashboard/global-search";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { HREF_BY_ID, META, NAV_GROUPS, SETTINGS_ICON, type ModuleId } from "@/lib/dashboard-nav";
 
@@ -47,6 +48,18 @@ type AdminUser = {
 };
 
 const BUSINESS_HREF = HREF_BY_ID.business;
+
+/** Sidebar tooltip, opening to the right of whatever it wraps. */
+function SidebarTip({ label, children }: { label: React.ReactNode; children: React.ReactElement }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={children} />
+      <TooltipContent side="right" sideOffset={10}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/);
@@ -255,6 +268,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     ),
   }));
 
+  // One highlight pill glides to the active nav link instead of each link
+  // painting its own background. Measured before paint, so it never flashes.
+  const navLinkRefs = useRef(new Map<ModuleId, HTMLAnchorElement>());
+  const [pill, setPill] = useState<{ top: number; height: number } | null>(null);
+  const navOrder = navGroups.flatMap((group) => group.items.map((item) => item.id));
+  const navKey = navOrder.join();
+  useLayoutEffect(() => {
+    const link = navLinkRefs.current.get(activeId);
+    setPill(link ? { top: link.offsetTop, height: link.offsetHeight } : null);
+  }, [activeId, navKey]);
+
   // Optimistic read of one notification — unreadCount is decremented
   // only when the item was actually unread and never goes below zero —
   // then navigate to Reservations. Server PATCH is idempotent; on
@@ -319,140 +343,174 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       />
 
       {/* Sidebar */}
-      <aside
-        id="dashboard-sidebar"
-        className={cn(
-          "fixed top-0 left-0 z-50 flex h-dvh w-64 max-w-[85vw] flex-col justify-between bg-[#0e0e12] px-4 py-4 shadow-[0_1px_8px_rgba(0,0,0,0.04)] transition-transform duration-200 lg:translate-x-0",
-          navOpen ? "translate-x-0" : "-translate-x-full"
-        )}
-      >
-        <div className="scrollbar-hide flex min-h-0 flex-col gap-3 overflow-y-auto">
-          <div className="relative flex items-center gap-3 border-b border-border/20 pr-8 pb-3 pl-1 lg:pr-1">
-            <button
-              type="button"
-              onClick={() => setNavOpen(false)}
-              aria-label="Close navigation"
-              className="absolute top-0 right-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground lg:hidden"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-primary/20 text-primary shadow-[0_0_12px_rgba(124,58,237,0.25)]">
-              <Clapperboard className="h-[22px] w-[22px]" />
-            </div>
-            <div className="flex min-w-0 flex-col">
-              <div className="flex items-center gap-1.5">
-                <span className="text-lg font-bold tracking-tight text-foreground">
-                  CineReserve
-                </span>
-                <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] leading-none font-semibold text-primary-foreground">
-                  AI
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {branch && (
-            <div className="flex items-center gap-2 rounded-xl border border-border/30 bg-card/80 p-2 shadow-sm">
-              <div className="relative shrink-0">
-                <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-muted text-primary">
-                  {branch.logo_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={branch.logo_url} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    <Drama className="h-[18px] w-[18px]" />
-                  )}
-                </div>
-                <span
-                  title={branch.status}
-                  className={cn(
-                    "absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-[#0e0e12]",
-                    branch.status === "active"
-                      ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]"
-                      : "bg-muted-foreground"
-                  )}
-                />
-              </div>
-              <div className="flex min-w-0 flex-1 flex-col">
-                <span
-                  className="truncate text-[13px] leading-snug font-medium tracking-tight text-foreground"
-                  title={branch.name}
-                >
-                  {branch.name}
-                </span>
-                <span className="truncate text-[11px] text-muted-foreground capitalize">
-                  {branch.status} · {branch.booking_mode === "room" ? "By room" : "By seat"}
-                </span>
-              </div>
-            </div>
+      <TooltipProvider delay={400}>
+        <aside
+          id="dashboard-sidebar"
+          className={cn(
+            "fixed top-0 left-0 z-50 flex h-dvh w-64 max-w-[85vw] flex-col justify-between bg-[#0e0e12] px-4 py-4 shadow-[0_1px_8px_rgba(0,0,0,0.04)] transition-transform duration-200 lg:translate-x-0",
+            navOpen ? "translate-x-0" : "-translate-x-full"
           )}
-
-          <nav className="flex flex-col">
-            {navGroups.map((group) => (
-              <div key={group.label}>
-                <div className="px-1 pt-2.5 pb-1">
-                  <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                    {group.label}
-                  </span>
-                </div>
-                {group.items.map((item) => {
-                  const Icon = item.icon;
-                  const active = activeId === item.id;
-                  return (
-                    <Link
-                      key={item.id}
-                      href={item.href}
-                      className={cn(
-                        "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-sm transition-all",
-                        active
-                          ? "bg-primary font-semibold text-primary-foreground shadow-[0_0_14px_rgba(124,58,237,0.35)]"
-                          : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                      )}
-                      aria-current={active ? "page" : undefined}
-                    >
-                      <Icon className="h-[18px] w-[18px] shrink-0" />
-                      <span className="truncate">{item.label}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            ))}
-          </nav>
-        </div>
-
-        <div className="pt-3">
-          <div className="flex items-center justify-between gap-2 rounded-lg bg-card p-2">
-            <div className="flex min-w-0 items-center gap-2">
-              <Avatar name={displayName} avatarUrl={user?.avatar_url ?? null} className="h-8 w-8" />
-              <div className="flex min-w-0 flex-col">
-                <span className="truncate text-sm font-semibold text-foreground">{displayName}</span>
-                <span className="truncate text-xs text-muted-foreground">{displayRole}</span>
-              </div>
-            </div>
-            <div className="flex shrink-0 items-center gap-0.5">
-              <Link
-                href={HREF_BY_ID.settings}
-                title="Settings"
-                className={cn(
-                  "rounded-md p-1.5 transition-colors",
-                  activeId === "settings"
-                    ? "bg-accent text-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                )}
-              >
-                <SETTINGS_ICON className="h-5 w-5" />
-              </Link>
+        >
+          <div className="scrollbar-hide flex min-h-0 flex-col gap-3 overflow-y-auto">
+            <div className="relative flex items-center gap-3 border-b border-border/20 pr-8 pb-3 pl-1 lg:pr-1">
               <button
                 type="button"
-                onClick={handleLogout}
-                title="Logout"
-                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-destructive"
+                onClick={() => setNavOpen(false)}
+                aria-label="Close navigation"
+                className="absolute top-0 right-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground lg:hidden"
               >
-                <LogOut className="h-5 w-5" />
+                <X className="h-5 w-5" />
               </button>
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-primary/20 text-primary shadow-[0_0_12px_rgba(124,58,237,0.25)]">
+                <Clapperboard className="h-[22px] w-[22px]" />
+              </div>
+              <div className="flex min-w-0 flex-col">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-lg font-bold tracking-tight text-foreground">
+                    CineReserve
+                  </span>
+                  <span className="rounded bg-primary px-1.5 py-0.5 text-[10px] leading-none font-semibold text-primary-foreground">
+                    AI
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {branch && (
+              <SidebarTip
+                label={
+                  <span className="flex flex-col gap-0.5">
+                    <strong className="font-semibold">{branch.name}</strong>
+                    <span>{branch.status === "active" ? "Live: customers can book" : `Status: ${branch.status}`}</span>
+                    <span>{branch.booking_mode === "room" ? "Customers book whole rooms" : "Customers book seats"}</span>
+                  </span>
+                }
+              >
+                <div className="flex animate-in items-center gap-2 rounded-xl border border-border/30 bg-card/80 p-2 shadow-sm transition-colors duration-200 fade-in-0 slide-in-from-left-2 hover:border-primary/40 motion-reduce:animate-none">
+                  <div className="relative shrink-0">
+                    <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-muted text-primary">
+                      {branch.logo_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={branch.logo_url} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <Drama className="h-[18px] w-[18px]" />
+                      )}
+                    </div>
+                    {branch.status === "active" && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 animate-ping rounded-full bg-emerald-400/60 motion-reduce:hidden"
+                      />
+                    )}
+                    <span
+                      className={cn(
+                        "absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-[#0e0e12]",
+                        branch.status === "active"
+                          ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]"
+                          : "bg-muted-foreground"
+                      )}
+                    />
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate text-[13px] leading-snug font-medium tracking-tight text-foreground">
+                      {branch.name}
+                    </span>
+                    <span className="truncate text-[11px] text-muted-foreground capitalize">
+                      {branch.status} · {branch.booking_mode === "room" ? "By room" : "By seat"}
+                    </span>
+                  </div>
+                </div>
+              </SidebarTip>
+            )}
+
+            <nav className="relative flex flex-col">
+              {pill && (
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-x-0 top-0 rounded-lg bg-primary shadow-[0_0_14px_rgba(124,58,237,0.35)] transition-[transform,height] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+                  style={{ transform: `translateY(${pill.top}px)`, height: pill.height }}
+                />
+              )}
+              {navGroups.map((group) => (
+                <div key={group.label}>
+                  <div className="px-1 pt-2.5 pb-1">
+                    <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                      {group.label}
+                    </span>
+                  </div>
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const active = activeId === item.id;
+                    return (
+                      <SidebarTip key={item.id} label={META[item.id].subtitle}>
+                        <Link
+                          href={item.href}
+                          ref={(link) => {
+                            if (link) navLinkRefs.current.set(item.id, link);
+                            else navLinkRefs.current.delete(item.id);
+                          }}
+                          // Links slide in one after another on first load.
+                          style={{ animationDelay: `${navOrder.indexOf(item.id) * 35}ms`, animationFillMode: "backwards" }}
+                          className={cn(
+                            "group relative flex w-full animate-in items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-sm transition-[color,background-color,transform] duration-200 fade-in-0 slide-in-from-left-3 motion-reduce:animate-none motion-reduce:transition-none",
+                            active
+                              ? "font-semibold text-primary-foreground"
+                              : "text-muted-foreground hover:translate-x-0.5 hover:bg-accent hover:text-foreground"
+                          )}
+                          aria-current={active ? "page" : undefined}
+                        >
+                          <Icon className="h-[18px] w-[18px] shrink-0 transition-transform duration-200 group-hover:scale-110 motion-reduce:transition-none" />
+                          <span className="truncate">{item.label}</span>
+                        </Link>
+                      </SidebarTip>
+                    );
+                  })}
+                </div>
+              ))}
+            </nav>
+          </div>
+
+          <div className="pt-3">
+            <div className="flex items-center justify-between gap-2 rounded-lg bg-card p-2">
+              <SidebarTip label={`${displayName} · ${displayRole}`}>
+                <div className="flex min-w-0 items-center gap-2">
+                  <Avatar name={displayName} avatarUrl={user?.avatar_url ?? null} className="h-8 w-8" />
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate text-sm font-semibold text-foreground">{displayName}</span>
+                    <span className="truncate text-xs text-muted-foreground">{displayRole}</span>
+                  </div>
+                </div>
+              </SidebarTip>
+              <div className="flex shrink-0 items-center gap-0.5">
+                <SidebarTip label="Account settings">
+                  <Link
+                    href={HREF_BY_ID.settings}
+                    aria-label="Account settings"
+                    className={cn(
+                      "group rounded-md p-1.5 transition-colors",
+                      activeId === "settings"
+                        ? "bg-accent text-foreground"
+                        : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    )}
+                  >
+                    <SETTINGS_ICON className="h-5 w-5 transition-transform duration-300 group-hover:rotate-45 motion-reduce:transition-none" />
+                  </Link>
+                </SidebarTip>
+                <SidebarTip label="Log out">
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    aria-label="Log out"
+                    className="group rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-destructive"
+                  >
+                    <LogOut className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none" />
+                  </button>
+                </SidebarTip>
+              </div>
             </div>
           </div>
-        </div>
-      </aside>
+        </aside>
+      </TooltipProvider>
 
       {/* Header */}
       <header className="fixed top-0 right-0 left-0 z-30 flex h-16 items-center justify-between gap-3 bg-background/80 px-4 shadow-[0_1px_8px_rgba(0,0,0,0.04)] backdrop-blur-xl sm:px-6 lg:left-64">

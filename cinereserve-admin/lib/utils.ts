@@ -22,3 +22,9 @@ export const shortDate = (date: string) =>
 
 /** 12500 → "₱13K" */
 export const pesoTick = (value: number) => `₱${value.toLocaleString("en-US", { notation: "compact" })}`
+
+/** Fade-and-rise entrance for dashboard blocks; pair with `enterDelay` to stagger. */
+export const ENTER = "animate-in fade-in-0 slide-in-from-bottom-3 duration-500 motion-reduce:animate-none"
+
+/** Holds the hidden first frame during the delay so staggered blocks don't flash in early. */
+export const enterDelay = (ms: number) => ({ animationDelay: `${ms}ms`, animationFillMode: "backwards" as const })

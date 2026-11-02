@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Ticket } from "lucide-react";
 import { LOADING } from "@/components/dashboard/loading-value";
+import { CountUp } from "@/components/dashboard/count-up";
 
 type Reservations = {
   confirmed_reservations_today: number;
@@ -29,13 +30,13 @@ export function ReservationsStat() {
   const value = failed
     ? "—"
     : reservations
-      ? String(reservations.confirmed_reservations_today)
+      ? <CountUp value={reservations.confirmed_reservations_today} />
       : LOADING;
   const hint = failed ? "Unavailable" : reservations ? "Confirmed today" : "Loading…";
   const footValue = failed
     ? "—"
     : reservations
-      ? String(reservations.pending_reservations_today)
+      ? <CountUp value={reservations.pending_reservations_today} />
       : LOADING;
 
   return (

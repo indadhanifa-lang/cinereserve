@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Tv } from "lucide-react";
 import { LOADING } from "@/components/dashboard/loading-value";
+import { CountUp } from "@/components/dashboard/count-up";
 
 type Screenings = {
   active_screenings: number;
@@ -31,7 +32,7 @@ export function ScreeningsStat() {
   const value = failed
     ? "—"
     : screenings
-      ? String(screenings.active_screenings)
+      ? <CountUp value={screenings.active_screenings} />
       : LOADING;
   const hint = failed
     ? "Unavailable"

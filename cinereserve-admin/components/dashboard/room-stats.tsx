@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { CalendarClock, DoorOpen } from "lucide-react";
 import { formatClock } from "@/lib/hours";
 import { LOADING } from "@/components/dashboard/loading-value";
+import { CountUp } from "@/components/dashboard/count-up";
 
 type RoomStats = {
   rooms_in_use: number;
@@ -75,7 +76,7 @@ export function RoomsInUseStat() {
     <Card
       label="Rooms in Use"
       icon={DoorOpen}
-      value={failed ? "—" : stats ? `${stats.rooms_in_use} / ${stats.total_halls}` : LOADING}
+      value={failed ? "—" : stats ? <><CountUp value={stats.rooms_in_use} /> / {stats.total_halls}</> : LOADING}
       hint={failed ? "Unavailable" : stats ? (stats.rooms_in_use ? "Playing now" : "All rooms free") : "Loading…"}
       footLabel="Free right now"
       footValue={failed ? "—" : stats ? plural(free, "room") : LOADING}
@@ -91,7 +92,7 @@ export function BookedTodayStat() {
     <Card
       label="Booked for Today"
       icon={CalendarClock}
-      value={failed ? "—" : stats ? String(stats.bookings_today) : LOADING}
+      value={failed ? "—" : stats ? <CountUp value={stats.bookings_today} /> : LOADING}
       hint={failed ? "Unavailable" : stats ? `in ${plural(stats.rooms_booked_today, "room")}` : "Loading…"}
       footLabel="Next start"
       footValue={
